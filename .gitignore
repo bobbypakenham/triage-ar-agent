@@ -7,11 +7,8 @@ __pycache__/
 # Environment variables
 .env
 
-# Generated outputs
-briefings/
-
 # OS files
 .DS_Store
 
 # IDE
-.vscode/briefings/
+.vscode/
