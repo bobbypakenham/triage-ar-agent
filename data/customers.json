@@ -1,0 +1,502 @@
+[
+  {
+    "customer_id": "C001",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Sophie Bailey",
+    "contact_email": "sophie.bailey@btinternet.com",
+    "account_opened": "2024-12-31",
+    "payment_terms_days": 14,
+    "credit_limit": 5000
+  },
+  {
+    "customer_id": "C002",
+    "customer_type": "business",
+    "company_name": "Orchard Lane Ltd",
+    "contact_name": null,
+    "contact_email": "accounts@orchardlane.co.uk",
+    "account_opened": "2023-10-15",
+    "payment_terms_days": 14,
+    "credit_limit": 10000
+  },
+  {
+    "customer_id": "C003",
+    "customer_type": "business",
+    "company_name": "Horizon Media Ltd",
+    "contact_name": "Liam Chen",
+    "contact_email": "liam.chen@horizonmedia.co.uk",
+    "account_opened": "2024-02-19",
+    "payment_terms_days": 60,
+    "credit_limit": 10000
+  },
+  {
+    "customer_id": "C004",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Lucy Patel",
+    "contact_email": "lucy.patel@icloud.com",
+    "account_opened": "2025-03-11",
+    "payment_terms_days": 7,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C005",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Olivia Dubois",
+    "contact_email": "olivia.dubois@hotmail.com",
+    "account_opened": "2024-12-30",
+    "payment_terms_days": 7,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C006",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Charlie Patel",
+    "contact_email": "charlie.patel@yahoo.co.uk",
+    "account_opened": "2024-09-28",
+    "payment_terms_days": 14,
+    "credit_limit": 1000
+  },
+  {
+    "customer_id": "C007",
+    "customer_type": "business",
+    "company_name": "Bright Star Holdings Ltd",
+    "contact_name": "Freya Thompson",
+    "contact_email": "freya.thompson@brightstarholdings.co.uk",
+    "account_opened": "2025-05-16",
+    "payment_terms_days": 60,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C008",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "James Thompson",
+    "contact_email": "james.thompson@outlook.com",
+    "account_opened": "2025-05-22",
+    "payment_terms_days": 30,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C009",
+    "customer_type": "business",
+    "company_name": "Vineyard Hall Ltd",
+    "contact_name": "Olivia Carter",
+    "contact_email": "olivia.carter@vineyardhall.co.uk",
+    "account_opened": "2023-11-18",
+    "payment_terms_days": 14,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C010",
+    "customer_type": "business",
+    "company_name": "Ridgefield Corp Ltd",
+    "contact_name": "Mia O'Brien",
+    "contact_email": "mia.obrien@ridgefieldcorp.co.uk",
+    "account_opened": "2024-02-27",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C011",
+    "customer_type": "business",
+    "company_name": "Pinecrest Ltd",
+    "contact_name": null,
+    "contact_email": "accounts@pinecrest.co.uk",
+    "account_opened": "2025-04-01",
+    "payment_terms_days": 14,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C012",
+    "customer_type": "business",
+    "company_name": "Oakhill Services Ltd",
+    "contact_name": "Freya Carter",
+    "contact_email": "freya.carter@oakhillservices.co.uk",
+    "account_opened": "2024-01-22",
+    "payment_terms_days": 30,
+    "credit_limit": 10000
+  },
+  {
+    "customer_id": "C013",
+    "customer_type": "business",
+    "company_name": "Ironbridge Supply Ltd",
+    "contact_name": "Oliver Khan",
+    "contact_email": "oliver.khan@ironbridgesupply.co.uk",
+    "account_opened": "2025-02-13",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C014",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Emma Rossi",
+    "contact_email": "emma.rossi@protonmail.com",
+    "account_opened": "2024-09-20",
+    "payment_terms_days": 14,
+    "credit_limit": 2500
+  },
+  {
+    "customer_id": "C015",
+    "customer_type": "business",
+    "company_name": "Edgewater Ltd",
+    "contact_name": "Grace Foster",
+    "contact_email": "grace.foster@edgewater.co.uk",
+    "account_opened": "2024-04-23",
+    "payment_terms_days": 30,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C016",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Charlie O'Brien",
+    "contact_email": "charlie.obrien@btinternet.com",
+    "account_opened": "2025-08-11",
+    "payment_terms_days": 7,
+    "credit_limit": 2500
+  },
+  {
+    "customer_id": "C017",
+    "customer_type": "business",
+    "company_name": "Grange Partners Ltd",
+    "contact_name": "Mia M\u00fcller",
+    "contact_email": "mia.m\u00fcller@grangepartners.co.uk",
+    "account_opened": "2024-05-11",
+    "payment_terms_days": 14,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C018",
+    "customer_type": "business",
+    "company_name": "Rosewater Ltd",
+    "contact_name": null,
+    "contact_email": "accounts@rosewater.co.uk",
+    "account_opened": "2023-08-17",
+    "payment_terms_days": 60,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C019",
+    "customer_type": "business",
+    "company_name": "Zephyr Trading Ltd",
+    "contact_name": "Jack Foster",
+    "contact_email": "jack.foster@zephyrtrading.co.uk",
+    "account_opened": "2025-04-21",
+    "payment_terms_days": 60,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C020",
+    "customer_type": "business",
+    "company_name": "Ivybridge Ltd",
+    "contact_name": "Mark Mitchell",
+    "contact_email": "mark.mitchell@ivybridge.co.uk",
+    "account_opened": "2024-10-20",
+    "payment_terms_days": 30,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C021",
+    "customer_type": "business",
+    "company_name": "Falcon Industries Ltd",
+    "contact_name": "Olivia M\u00fcller",
+    "contact_email": "olivia.m\u00fcller@falconindustries.co.uk",
+    "account_opened": "2025-02-01",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C022",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Isla Hughes",
+    "contact_email": "isla.hughes@btinternet.com",
+    "account_opened": "2024-12-23",
+    "payment_terms_days": 14,
+    "credit_limit": 1000
+  },
+  {
+    "customer_id": "C023",
+    "customer_type": "business",
+    "company_name": "Larkspur Ltd",
+    "contact_name": "Charlie Murphy",
+    "contact_email": "charlie.murphy@larkspur.co.uk",
+    "account_opened": "2025-02-11",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C024",
+    "customer_type": "business",
+    "company_name": "Beacon Group Ltd",
+    "contact_name": "Mia Dubois",
+    "contact_email": "mia.dubois@beacongroup.co.uk",
+    "account_opened": "2024-04-21",
+    "payment_terms_days": 60,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C025",
+    "customer_type": "business",
+    "company_name": "Cedar Consulting Ltd",
+    "contact_name": "Jack Hughes",
+    "contact_email": "jack.hughes@cedarconsulting.co.uk",
+    "account_opened": "2025-03-14",
+    "payment_terms_days": 14,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C026",
+    "customer_type": "business",
+    "company_name": "Fairhaven Ltd",
+    "contact_name": "Daniel Khan",
+    "contact_email": "daniel.khan@fairhaven.co.uk",
+    "account_opened": "2023-06-09",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C027",
+    "customer_type": "business",
+    "company_name": "Underwood Ltd",
+    "contact_name": "Mia Chen",
+    "contact_email": "mia.chen@underwood.co.uk",
+    "account_opened": "2023-06-19",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C028",
+    "customer_type": "business",
+    "company_name": "Northwind Ltd",
+    "contact_name": "Amelia Dubois",
+    "contact_email": "amelia.dubois@northwind.co.uk",
+    "account_opened": "2025-02-26",
+    "payment_terms_days": 30,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C029",
+    "customer_type": "business",
+    "company_name": "Blackthorn Ltd",
+    "contact_name": "Emma Nakamura",
+    "contact_email": "emma.nakamura@blackthorn.co.uk",
+    "account_opened": "2023-12-17",
+    "payment_terms_days": 30,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C030",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Amelia Foster",
+    "contact_email": "amelia.foster@hotmail.com",
+    "account_opened": "2025-01-16",
+    "payment_terms_days": 30,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C031",
+    "customer_type": "business",
+    "company_name": "Greystone Ltd",
+    "contact_name": "Freya Andersson",
+    "contact_email": "freya.andersson@greystone.co.uk",
+    "account_opened": "2023-06-11",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C032",
+    "customer_type": "business",
+    "company_name": "Quillington Ltd",
+    "contact_name": "Ethan Reynolds",
+    "contact_email": "ethan.reynolds@quillington.co.uk",
+    "account_opened": "2025-05-08",
+    "payment_terms_days": 30,
+    "credit_limit": 10000
+  },
+  {
+    "customer_id": "C033",
+    "customer_type": "business",
+    "company_name": "Jasmine Court Ltd",
+    "contact_name": "Jack Kowalski",
+    "contact_email": "jack.kowalski@jasminecourt.co.uk",
+    "account_opened": "2024-03-18",
+    "payment_terms_days": 60,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C034",
+    "customer_type": "business",
+    "company_name": "Meridian Labs Ltd",
+    "contact_name": "Sarah Dubois",
+    "contact_email": "sarah.dubois@meridianlabs.co.uk",
+    "account_opened": "2024-01-29",
+    "payment_terms_days": 60,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C035",
+    "customer_type": "business",
+    "company_name": "Wellington Park Ltd",
+    "contact_name": "Jack Mitchell",
+    "contact_email": "jack.mitchell@wellingtonpark.co.uk",
+    "account_opened": "2024-09-13",
+    "payment_terms_days": 30,
+    "credit_limit": 10000
+  },
+  {
+    "customer_id": "C036",
+    "customer_type": "business",
+    "company_name": "Alpine Logistics Ltd",
+    "contact_name": "Liam Dubois",
+    "contact_email": "liam.dubois@alpinelogistics.co.uk",
+    "account_opened": "2023-05-24",
+    "payment_terms_days": 30,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C037",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Noah Dubois",
+    "contact_email": "noah.dubois@yahoo.co.uk",
+    "account_opened": "2024-11-15",
+    "payment_terms_days": 30,
+    "credit_limit": 5000
+  },
+  {
+    "customer_id": "C038",
+    "customer_type": "business",
+    "company_name": "Nightingale Ltd",
+    "contact_name": null,
+    "contact_email": "accounts@nightingale.co.uk",
+    "account_opened": "2024-12-14",
+    "payment_terms_days": 14,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C039",
+    "customer_type": "business",
+    "company_name": "Crestview Ltd",
+    "contact_name": "Grace Mitchell",
+    "contact_email": "grace.mitchell@crestview.co.uk",
+    "account_opened": "2024-10-17",
+    "payment_terms_days": 60,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C040",
+    "customer_type": "business",
+    "company_name": "Stonebrook Ltd",
+    "contact_name": "Lucy Chen",
+    "contact_email": "lucy.chen@stonebrook.co.uk",
+    "account_opened": "2023-10-23",
+    "payment_terms_days": 30,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C041",
+    "customer_type": "business",
+    "company_name": "Ashcroft Ltd",
+    "contact_name": "Freya Thompson",
+    "contact_email": "freya.thompson@ashcroft.co.uk",
+    "account_opened": "2023-11-08",
+    "payment_terms_days": 14,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C042",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Sophie Hughes",
+    "contact_email": "sophie.hughes@icloud.com",
+    "account_opened": "2024-09-05",
+    "payment_terms_days": 30,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C043",
+    "customer_type": "business",
+    "company_name": "Zenith Consulting Ltd",
+    "contact_name": "Sarah Khan",
+    "contact_email": "sarah.khan@zenithconsulting.co.uk",
+    "account_opened": "2024-12-29",
+    "payment_terms_days": 30,
+    "credit_limit": 100000
+  },
+  {
+    "customer_id": "C044",
+    "customer_type": "business",
+    "company_name": "Sterling Bay Ltd",
+    "contact_name": "Olivia M\u00fcller",
+    "contact_email": "olivia.m\u00fcller@sterlingbay.co.uk",
+    "account_opened": "2024-12-19",
+    "payment_terms_days": 30,
+    "credit_limit": 25000
+  },
+  {
+    "customer_id": "C045",
+    "customer_type": "business",
+    "company_name": "Acme Logistics Ltd",
+    "contact_name": "Charlie Hughes",
+    "contact_email": "charlie.hughes@acmelogistics.co.uk",
+    "account_opened": "2025-05-08",
+    "payment_terms_days": 14,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C046",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Amelia Andersson",
+    "contact_email": "amelia.andersson@btinternet.com",
+    "account_opened": "2024-10-13",
+    "payment_terms_days": 14,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C047",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Liam Chen",
+    "contact_email": "liam.chen@hotmail.com",
+    "account_opened": "2025-07-23",
+    "payment_terms_days": 30,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C048",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Grace Rossi",
+    "contact_email": "grace.rossi@protonmail.com",
+    "account_opened": "2025-08-31",
+    "payment_terms_days": 14,
+    "credit_limit": 500
+  },
+  {
+    "customer_id": "C049",
+    "customer_type": "business",
+    "company_name": "Yorkshire Trading Ltd",
+    "contact_name": "Leo Singh",
+    "contact_email": "leo.singh@yorkshiretrading.co.uk",
+    "account_opened": "2024-06-26",
+    "payment_terms_days": 30,
+    "credit_limit": 50000
+  },
+  {
+    "customer_id": "C050",
+    "customer_type": "individual",
+    "company_name": null,
+    "contact_name": "Mia O'Brien",
+    "contact_email": "mia.obrien@gmail.com",
+    "account_opened": "2024-12-14",
+    "payment_terms_days": 7,
+    "credit_limit": 500
+  }
+]

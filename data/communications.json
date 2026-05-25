@@ -1,0 +1,344 @@
+[
+  {
+    "log_id": "L61876",
+    "customer_id": "C004",
+    "invoice_id": "INV-2026-1402",
+    "date_sent": "2026-04-21",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L42706",
+    "customer_id": "C005",
+    "invoice_id": "INV-2026-1521",
+    "date_sent": "2026-04-18",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L33788",
+    "customer_id": "C012",
+    "invoice_id": "INV-2026-2217",
+    "date_sent": "2026-05-11",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L27892",
+    "customer_id": "C013",
+    "invoice_id": "INV-2026-2320",
+    "date_sent": "2026-05-07",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L62098",
+    "customer_id": "C014",
+    "invoice_id": "INV-2026-2414",
+    "date_sent": "2026-04-25",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L34920",
+    "customer_id": "C015",
+    "invoice_id": "INV-2026-2522",
+    "date_sent": "2026-04-19",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L91381",
+    "customer_id": "C015",
+    "invoice_id": "INV-2026-2522",
+    "date_sent": "2026-05-02",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L42850",
+    "customer_id": "C015",
+    "invoice_id": "INV-2026-2523",
+    "date_sent": "2026-05-04",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L98835",
+    "customer_id": "C015",
+    "invoice_id": "INV-2026-2524",
+    "date_sent": "2026-04-19",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L96400",
+    "customer_id": "C015",
+    "invoice_id": "INV-2026-2524",
+    "date_sent": "2026-05-02",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L74139",
+    "customer_id": "C016",
+    "invoice_id": "INV-2026-2621",
+    "date_sent": "2026-03-12",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L90694",
+    "customer_id": "C016",
+    "invoice_id": "INV-2026-2621",
+    "date_sent": "2026-03-25",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L63492",
+    "customer_id": "C016",
+    "invoice_id": "INV-2026-2622",
+    "date_sent": "2026-04-11",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L46666",
+    "customer_id": "C016",
+    "invoice_id": "INV-2026-2622",
+    "date_sent": "2026-04-24",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L14288",
+    "customer_id": "C016",
+    "invoice_id": "INV-2026-2623",
+    "date_sent": "2026-03-12",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L58566",
+    "customer_id": "C016",
+    "invoice_id": "INV-2026-2623",
+    "date_sent": "2026-03-25",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L18609",
+    "customer_id": "C017",
+    "invoice_id": "INV-2026-2722",
+    "date_sent": "2026-04-28",
+    "tier": 1,
+    "customer_responded": true,
+    "response_summary": "Promised payment by end of week"
+  },
+  {
+    "log_id": "L83889",
+    "customer_id": "C021",
+    "invoice_id": "INV-2026-3102",
+    "date_sent": "2026-05-14",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L21104",
+    "customer_id": "C022",
+    "invoice_id": "INV-2026-3221",
+    "date_sent": "2026-04-03",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L50577",
+    "customer_id": "C022",
+    "invoice_id": "INV-2026-3221",
+    "date_sent": "2026-04-16",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L83259",
+    "customer_id": "C022",
+    "invoice_id": "INV-2026-3222",
+    "date_sent": "2026-03-19",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L59372",
+    "customer_id": "C022",
+    "invoice_id": "INV-2026-3222",
+    "date_sent": "2026-04-01",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L94343",
+    "customer_id": "C022",
+    "invoice_id": "INV-2026-3223",
+    "date_sent": "2026-04-18",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L53054",
+    "customer_id": "C022",
+    "invoice_id": "INV-2026-3223",
+    "date_sent": "2026-05-01",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L84766",
+    "customer_id": "C023",
+    "invoice_id": "INV-2026-3314",
+    "date_sent": "2026-05-09",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L60678",
+    "customer_id": "C025",
+    "invoice_id": "INV-2026-3523",
+    "date_sent": "2026-04-23",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L39552",
+    "customer_id": "C027",
+    "invoice_id": "INV-2026-3715",
+    "date_sent": "2026-05-09",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L76494",
+    "customer_id": "C029",
+    "invoice_id": "INV-2026-3917",
+    "date_sent": "2026-05-09",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L49008",
+    "customer_id": "C030",
+    "invoice_id": "INV-2026-4019",
+    "date_sent": "2026-04-29",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L95029",
+    "customer_id": "C036",
+    "invoice_id": "INV-2026-4614",
+    "date_sent": "2026-05-09",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L40334",
+    "customer_id": "C037",
+    "invoice_id": "INV-2026-4715",
+    "date_sent": "2026-05-14",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L11617",
+    "customer_id": "C039",
+    "invoice_id": "INV-2026-4920",
+    "date_sent": "2026-05-04",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L90492",
+    "customer_id": "C041",
+    "invoice_id": "INV-2026-5122",
+    "date_sent": "2026-04-23",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L46349",
+    "customer_id": "C043",
+    "invoice_id": "INV-2026-5322",
+    "date_sent": "2026-05-04",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L95969",
+    "customer_id": "C043",
+    "invoice_id": "INV-2026-5323",
+    "date_sent": "2026-04-19",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L26631",
+    "customer_id": "C043",
+    "invoice_id": "INV-2026-5323",
+    "date_sent": "2026-05-02",
+    "tier": 2,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L61505",
+    "customer_id": "C048",
+    "invoice_id": "INV-2026-5822",
+    "date_sent": "2026-04-23",
+    "tier": 1,
+    "customer_responded": false,
+    "response_summary": null
+  },
+  {
+    "log_id": "L13697",
+    "customer_id": "C050",
+    "invoice_id": "INV-2026-6021",
+    "date_sent": "2026-04-21",
+    "tier": 1,
+    "customer_responded": true,
+    "response_summary": "Promised payment by end of week"
+  }
+]

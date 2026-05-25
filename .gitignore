@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables
+.env
+
+# Generated outputs
+briefings/
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/briefings/
