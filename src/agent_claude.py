@@ -25,6 +25,9 @@ from src import tools
 # ---------------------------------------------------------------------
 
 load_dotenv()  # Read .env so ANTHROPIC_API_KEY is available
+import streamlit as st
+api_key = st.secrets.get("ANTHROPIC_API_KEY") if hasattr(st, "secrets") else None
+api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
 MODEL_NAME = "claude-sonnet-4-5"
 MAX_ITERATIONS = 8
 MAX_TOKENS_PER_RESPONSE = 2048  # Claude needs a max_tokens cap per call
@@ -179,7 +182,7 @@ def analyze_customer(customer_id, verbose=True):
     
     pre_call_recommendations = len(tools.get_all_recommendations())
     
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=api_key)
     
     # Claude's API takes the system prompt as a separate parameter,
     # not as a message with role='system'.
