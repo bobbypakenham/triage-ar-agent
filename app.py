@@ -17,7 +17,6 @@ from src.csv_handler import (
     load_csv, auto_detect_columns, validate_mapping,
     normalise, summary_stats, REQUIRED_FIELDS, FIELD_PATTERNS,
 )
-from src.orchestrator import run_batch
 
 # ─────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -601,6 +600,7 @@ if "Daily" in page:
             st.info("Ledger uploaded. Run triage to analyse your accounts.")
             if st.button("Run Triage", type="primary"):
                 with st.spinner("Analysing accounts… this takes a few minutes."):
+                    from src.orchestrator import run_batch
                     run_batch(verbose=False)
                 st.cache_data.clear()
                 st.rerun()
