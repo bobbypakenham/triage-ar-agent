@@ -1,0 +1,16 @@
+Customer Name,Invoice Number,Amount Due,Invoice Date,Due Date,Contact Email,Payment Terms
+Celtic Trade Ltd,INV-1001,18000.00,2026-01-31,2026-03-02,accounts@celtictrade.ie,30
+Celtic Trade Ltd,INV-1002,4500.00,2026-03-15,2026-04-14,accounts@celtictrade.ie,30
+O'Brien Consulting,INV-2001,450.00,2026-03-27,2026-04-26,sean@obrienconsulting.ie,30
+Brennan & Sons Ltd,INV-3001,3200.00,2026-04-01,2026-05-01,finance@brennandsons.ie,30
+Brennan & Sons Ltd,INV-3002,1800.00,2026-04-20,2026-05-20,finance@brennandsons.ie,30
+Murphy Logistics,INV-4001,7600.00,2026-02-14,2026-03-16,billing@murphylogistics.ie,30
+Murphy Logistics,INV-4002,3900.00,2026-03-01,2026-03-31,billing@murphylogistics.ie,30
+Galway Fresh Foods,INV-5001,920.00,2026-05-01,2026-05-31,accounts@galwayfresh.ie,30
+Galway Fresh Foods,INV-5002,680.00,2026-05-10,2026-06-09,accounts@galwayfresh.ie,30
+Fitzgerald Pharma,INV-6001,14200.00,2026-03-10,2026-04-09,ap@fitzgeraldpharma.ie,30
+Fitzgerald Pharma,INV-6002,9800.00,2026-04-05,2026-05-05,ap@fitzgeraldpharma.ie,30
+Dunne Hardware,INV-7001,2100.00,2026-04-15,2026-05-15,info@dunnehardware.ie,30
+Ryan & Associates,INV-8001,5500.00,2026-05-05,2026-06-04,billing@ryanassoc.ie,30
+Leinster Events Ltd,INV-9001,1250.00,2026-04-22,2026-05-22,finance@leinsterevents.ie,30
+Leinster Events Ltd,INV-9002,875.00,2026-05-12,2026-06-11,finance@leinsterevents.ie,30

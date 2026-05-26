@@ -32,8 +32,8 @@ FIELD_PATTERNS = {
         "payment due date", "due date", "pay by date",
         "due", "payment due", "pay by", "payment date"
     ],
-    "contact_name":  ["contact name", "contact person", "contact"],
-    "contact_email": ["email", "contact email", "e-mail"],
+    "contact_email": ["contact email", "e-mail", "email"],
+    "contact_name":  ["contact name", "contact person"],
     "payment_terms": ["payment terms", "terms", "net days", "net"],
 }
 
