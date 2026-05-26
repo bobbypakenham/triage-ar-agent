@@ -243,7 +243,10 @@ def get_name(cid):
 
 @st.cache_data
 def get_overdue(cid):
-    return sum(i["amount"] for i in tools.get_open_invoices(cid) if i["days_past_due"] > 0)
+    invoices = tools.get_open_invoices(cid)
+    if isinstance(invoices, dict):  # error dict — customer not found
+        return 0
+    return sum(i["amount"] for i in invoices if i["days_past_due"] > 0)
 
 @st.cache_data
 def get_profile(cid):  return tools.get_customer_profile(cid)
@@ -1100,6 +1103,9 @@ elif "Upload" in page:
                 if not Path("data/communications.json").exists():
                     with open("data/communications.json", "w") as f:
                         json.dump([], f)
+
+                for stale in Path("briefings").glob("results_*.json"):
+                    stale.unlink()
 
                 tools.reload_data()
                 st.cache_data.clear()
