@@ -694,35 +694,23 @@ if "Daily" in page:
                     ov  = get_overdue(cid)
                     cls = r["classification"]
                     invs = get_invoices(cid)
-                    dpd  = max((i["days_past_due"] for i in invs), default=0)
-                    _dpd_html = f'<div style="font-size:0.7rem;color:{AMT_COL[cls]};margin-top:2px;">+{dpd}d</div>' if dpd > 0 else ''
-                    _pattern  = r.get('pattern_noticed', '—')
-                    _snippet  = _pattern[:90] + ('…' if len(_pattern) > 90 else '')
-                    st.markdown(f"""
-                    <div style="background:#fff;border:0.5px solid #D6E8E4;
-                                border-left:3px solid {BORDERS[cls]};
-                                border-radius:8px;padding:12px 16px;margin-bottom:6px;
-                                display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <span style="font-size:0.88rem;font-weight:600;
-                                         color:#0A2E28;">{nm}</span>
-                            <span style="font-size:0.7rem;color:#8AADA8;
-                                         font-family:'DM Mono',monospace;
-                                         margin-left:7px;">{cid}</span>
-                            <div style="font-size:0.74rem;color:#5A7A74;margin-top:4px;">
-                                {_snippet}
-                            </div>
-                        </div>
-                        <div style="text-align:right;flex-shrink:0;margin-left:16px;">
-                            <div style="font-size:0.95rem;font-weight:700;
-                                        color:{AMT_COL[cls]};
-                                        font-family:'DM Mono',monospace;">
-                                €{ov:,.2f}
-                            </div>
-                            {_dpd_html}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    dpd     = max((i["days_past_due"] for i in invs), default=0)
+                    _pat    = r.get('pattern_noticed', '—')
+                    _snip   = _pat[:90] + ('…' if len(_pat) > 90 else '')
+                    _days   = f'+{dpd}d' if dpd > 0 else ''
+                    _ac     = AMT_COL[cls]
+                    _bc     = BORDERS[cls]
+                    st.markdown(
+                        f'<div style="background:#fff;border:0.5px solid #D6E8E4;border-left:3px solid {_bc};border-radius:8px;padding:12px 16px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">'
+                        f'<div><span style="font-size:0.88rem;font-weight:600;color:#0A2E28;">{nm}</span>'
+                        f'<span style="font-size:0.7rem;color:#8AADA8;font-family:\'DM Mono\',monospace;margin-left:7px;">{cid}</span>'
+                        f'<div style="font-size:0.74rem;color:#5A7A74;margin-top:4px;">{_snip}</div></div>'
+                        f'<div style="text-align:right;flex-shrink:0;margin-left:16px;">'
+                        f'<div style="font-size:0.95rem;font-weight:700;color:{_ac};font-family:\'DM Mono\',monospace;">€{ov:,.2f}</div>'
+                        f'<div style="font-size:0.7rem;font-weight:600;color:{_ac};margin-top:1px;">{_days}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True
+                    )
 
             st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
