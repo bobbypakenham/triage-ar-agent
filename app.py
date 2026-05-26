@@ -471,6 +471,8 @@ def topbar():
 # ─────────────────────────────────────────────────────────────────────
 def customer_card(r, idx=0):
     cid     = r["customer_id"]
+    if get_profile(cid) == {}:
+        return
     name    = get_name(cid)
     overdue = get_overdue(cid)
     cls     = r["classification"]
@@ -673,6 +675,8 @@ if "Daily" in page:
                 """, unsafe_allow_html=True)
                 for r in top5:
                     cid = r["customer_id"]
+                    if get_profile(cid) == {}:
+                        continue
                     nm  = get_name(cid)
                     ov  = get_overdue(cid)
                     cls = r["classification"]
