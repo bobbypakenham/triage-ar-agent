@@ -487,7 +487,7 @@ def customer_card(r, idx=0):
     max_past_due = max((i["days_past_due"] for i in invoices), default=0)
     unanswered   = sum(1 for c in get_comms(cid) if not c["customer_responded"])
     behavior     = stats.get("behavior_classification", "—")
-    terms        = profile.get("payment_terms_days", 30)
+    terms        = profile.get("payment_terms_days") or 30
     days_display = f"+{max_past_due}d" if max_past_due > 0 else "Within terms"
 
     meta_parts = [f"Net {terms}"]
@@ -862,11 +862,11 @@ elif "Customer" in page:
                         {action_tag(rec['recommended_action']) if rec else ''}
                     </div>
                     <div style="font-size:0.78rem;color:#4A6B65;line-height:1.7;">
-                        {profile.get('customer_type','').title()} ·
-                        {profile.get('contact_email','—')} ·
-                        Net {profile.get('payment_terms_days',30)} terms ·
-                        €{profile.get('credit_limit',0):,} credit limit ·
-                        Account open {profile.get('account_age_months',0):.0f} months
+                        {(profile.get('customer_type') or '').title()} ·
+                        {profile.get('contact_email') or '—'} ·
+                        Net {profile.get('payment_terms_days') or 30} terms ·
+                        €{profile.get('credit_limit') or 0:,} credit limit ·
+                        Account open {profile.get('account_age_months') or 0:.0f} months
                     </div>
                 </div>
             </div>
@@ -876,15 +876,15 @@ elif "Customer" in page:
         # ── STATS ROW ──
         scols = st.columns(5)
         s_items = [
-            ("Avg Days to Pay",  f"{stats.get('avg_days_to_pay','—')}d",  "#0A4A42"),
-            ("Avg Days Late",    f"{stats.get('avg_days_late','—')}d",
-             "#854F0B" if stats.get('avg_days_late',0)>0 else "#3B6D11"),
-            ("Reliability",      f"{stats.get('reliability_score',0):.0%}",
-             "#3B6D11" if stats.get('reliability_score',0)>0.7 else "#993C1D"),
-            ("Trend",            stats.get('trend','—').title(),
+            ("Avg Days to Pay",  f"{stats.get('avg_days_to_pay') or '—'}d",  "#0A4A42"),
+            ("Avg Days Late",    f"{stats.get('avg_days_late') or '—'}d",
+             "#854F0B" if (stats.get('avg_days_late') or 0)>0 else "#3B6D11"),
+            ("Reliability",      f"{stats.get('reliability_score') or 0:.0%}",
+             "#3B6D11" if (stats.get('reliability_score') or 0)>0.7 else "#993C1D"),
+            ("Trend",            (stats.get('trend') or '—').title(),
              "#993C1D" if stats.get('trend')=='deteriorating' else
              "#854F0B" if stats.get('trend')=='stable' else "#3B6D11"),
-            ("Classification",   stats.get('behavior_classification','—').replace('_',' ').title(),
+            ("Classification",   (stats.get('behavior_classification') or '—').replace('_',' ').title(),
              "#0A4A42"),
         ]
         for col, (lbl, val, color) in zip(scols, s_items):
