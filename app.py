@@ -225,6 +225,16 @@ hr { border-color: #D6E8E4 !important; margin: 16px 0 !important; }
 # DATA
 # ─────────────────────────────────────────────────────────────────────
 def load_results():
+    # If today's results file is older than customers.json, it was written
+    # against a different customer set — discard it so the fallback kicks in.
+    customers_path = DATA_DIR / "customers.json"
+    if RESULTS.exists() and customers_path.exists():
+        if RESULTS.stat().st_mtime < customers_path.stat().st_mtime:
+            try:
+                RESULTS.unlink()
+            except Exception:
+                pass
+
     target = RESULTS if RESULTS.exists() else None
     if not target:
         candidates = sorted(Path("briefings").glob("results_*.json"))
