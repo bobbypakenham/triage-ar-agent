@@ -859,7 +859,7 @@ elif "Customer" in page:
         stats    = get_stats(cid)
         invoices = get_invoices(cid)
         comms    = get_comms(cid)
-        rec      = next((r for r in data if r["customer_id"] == cid), None)
+        rec      = next((r for r in data if r["customer_id"] == cid), None) if data else None
         cls      = rec["classification"] if rec else "green"
         name     = get_name(cid)
 
