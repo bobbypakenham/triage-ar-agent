@@ -249,13 +249,24 @@ def get_overdue(cid):
     return sum(i["amount"] for i in invoices if i["days_past_due"] > 0)
 
 @st.cache_data
-def get_profile(cid):  return tools.get_customer_profile(cid)
+def get_profile(cid):
+    r = tools.get_customer_profile(cid)
+    return r if isinstance(r, dict) and "error" not in r else {}
+
 @st.cache_data
-def get_invoices(cid): return tools.get_open_invoices(cid)
+def get_invoices(cid):
+    r = tools.get_open_invoices(cid)
+    return r if isinstance(r, list) else []
+
 @st.cache_data
-def get_stats(cid):    return tools.get_payment_stats(cid)
+def get_stats(cid):
+    r = tools.get_payment_stats(cid)
+    return r if isinstance(r, dict) and "error" not in r else {}
+
 @st.cache_data
-def get_comms(cid):    return tools.get_communications_log(cid)
+def get_comms(cid):
+    r = tools.get_communications_log(cid)
+    return r if isinstance(r, list) else []
 
 # ─────────────────────────────────────────────────────────────────────
 # DESIGN HELPERS
