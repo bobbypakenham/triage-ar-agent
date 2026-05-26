@@ -343,7 +343,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Workspace nav ──
+    # ── Nav (single radio — no dual-selection possible) ──
     st.markdown("""
     <div style="padding:16px 16px 4px;">
         <div style="font-size:0.62rem;font-weight:600;color:#5DCAA5;
@@ -351,38 +351,35 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    def _clear_report():
-        st.session_state.pop("reports", None)
-
-    def _clear_nav():
-        st.session_state.pop("nav", None)
-
     page = st.radio(
         "nav",
-        ["Daily Briefing", "Action Queue", "Customers", "Upload Ledger"],
+        ["Daily Briefing", "Action Queue", "Customers", "Upload Ledger",
+         "AR Analytics", "Run History"],
         label_visibility="collapsed",
         key="nav",
-        on_change=_clear_report,
     )
 
-    # ── Reports nav ──
     st.markdown("""
-    <div style="padding:16px 16px 4px;margin-top:8px;">
-        <div style="font-size:0.62rem;font-weight:600;color:#5DCAA5;
-                    letter-spacing:0.1em;text-transform:uppercase;">Reports</div>
-    </div>
+    <style>
+    div[data-testid="stRadio"] > div > label:nth-child(5) {
+        margin-top: 18px !important;
+        padding-top: 22px !important;
+        border-top: 1px solid rgba(255,255,255,0.08) !important;
+        position: relative !important;
+    }
+    div[data-testid="stRadio"] > div > label:nth-child(5)::before {
+        content: "REPORTS";
+        position: absolute;
+        top: 5px;
+        left: 10px;
+        font-size: 0.62rem;
+        font-weight: 600;
+        color: #5DCAA5;
+        letter-spacing: 0.1em;
+        font-family: 'DM Sans', sans-serif;
+    }
+    </style>
     """, unsafe_allow_html=True)
-
-    report = st.radio(
-        "reports",
-        ["AR Analytics", "Run History"],
-        label_visibility="collapsed",
-        index=None,
-        key="reports",
-        on_change=_clear_nav,
-    )
-    if report:
-        page = report
 
     # ── Today's snapshot ──
     st.markdown(f"""
@@ -698,6 +695,9 @@ if "Daily" in page:
                     cls = r["classification"]
                     invs = get_invoices(cid)
                     dpd  = max((i["days_past_due"] for i in invs), default=0)
+                    _dpd_html = f'<div style="font-size:0.7rem;color:{AMT_COL[cls]};margin-top:2px;">+{dpd}d</div>' if dpd > 0 else ''
+                    _pattern  = r.get('pattern_noticed', '—')
+                    _snippet  = _pattern[:90] + ('…' if len(_pattern) > 90 else '')
                     st.markdown(f"""
                     <div style="background:#fff;border:0.5px solid #D6E8E4;
                                 border-left:3px solid {BORDERS[cls]};
@@ -710,7 +710,7 @@ if "Daily" in page:
                                          font-family:'DM Mono',monospace;
                                          margin-left:7px;">{cid}</span>
                             <div style="font-size:0.74rem;color:#5A7A74;margin-top:4px;">
-                                {r.get('pattern_noticed', '—')[:90]}{'…' if len(r.get('pattern_noticed', '—'))>90 else ''}
+                                {_snippet}
                             </div>
                         </div>
                         <div style="text-align:right;flex-shrink:0;margin-left:16px;">
@@ -719,7 +719,7 @@ if "Daily" in page:
                                         font-family:'DM Mono',monospace;">
                                 €{ov:,.2f}
                             </div>
-                            {f'<div style="font-size:0.7rem;color:{AMT_COL[cls]};margin-top:2px;">+{dpd}d</div>' if dpd>0 else ''}
+                            {_dpd_html}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -732,15 +732,18 @@ if "Daily" in page:
                         letter-spacing:0.04em;text-transform:uppercase;
                         margin-bottom:12px;">No Action Needed — {len(green)} accounts</div>
             """, unsafe_allow_html=True)
-            rows = [{"Customer": get_name(r["customer_id"]),
-                     "ID": r["customer_id"],
-                     "Note": r.get('pattern_noticed', '—')} for r in green]
-            st.dataframe(rows, use_container_width=True, hide_index=True,
-                column_config={
-                    "Customer": st.column_config.TextColumn(width="medium"),
-                    "ID":       st.column_config.TextColumn(width="small"),
-                    "Note":     st.column_config.TextColumn(width="large"),
-                })
+            if not green:
+                st.markdown('<div style="font-size:0.82rem;color:#6B9E94;padding:8px 0;">No accounts are fully clear this run.</div>', unsafe_allow_html=True)
+            else:
+                rows = [{"Customer": get_name(r["customer_id"]),
+                         "ID": r["customer_id"],
+                         "Note": r.get('pattern_noticed', '—')} for r in green]
+                st.dataframe(rows, use_container_width=True, hide_index=True,
+                    column_config={
+                        "Customer": st.column_config.TextColumn(width="medium"),
+                        "ID":       st.column_config.TextColumn(width="small"),
+                        "Note":     st.column_config.TextColumn(width="large"),
+                    })
 
         # ── RED TAB ──
         with t_red:
