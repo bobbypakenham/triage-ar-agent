@@ -1,0 +1,470 @@
+[
+  {
+    "customer_id": "C001",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C002",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C003",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C004",
+    "classification": "red",
+    "pattern_noticed": "Individual customer with insufficient payment history (only 2 invoices), currently 28 days past due with no response to Tier 1 reminder sent 26 days ago, and invoice exceeds credit limit.",
+    "recommended_action": "escalate_to_human",
+    "drafted_email": null,
+    "reasoning": "This case meets multiple escalation criteria: behavior_classification is \"insufficient_data\" (only 2 paid invoices), the open invoice exceeds the \u00a3500 credit limit, and the customer has not responded to a Tier 1 reminder sent 26 days ago despite the invoice being 28 days past due. The limited payment history combined with non-responsiveness and credit limit breach requires human judgment to determine appropriate collection action."
+  },
+  {
+    "customer_id": "C005",
+    "classification": "amber",
+    "pattern_noticed": "High-risk customer with chronic late payment pattern (averages 32 days late); Tier 1 reminder sent 29 days ago went unanswered.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-1521",
+      "body": "Hello Olivia,\n\nWe contacted you on 18th April regarding invoice INV-2026-1521 for \u00a3473.10, which was due on 16th April and is now 31 days overdue. We have not yet received payment or a response to our earlier reminder.\n\nPlease arrange payment immediately or contact us to discuss if there are any issues preventing settlement of this invoice.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Customer is classified as high_risk with a 0% on-time payment rate and averages 31.6 days late. A Tier 1 reminder was sent on April 18th with no response, and the invoice is now 31 days past due. Following standard escalation protocol for high_risk customers with unanswered Tier 1 communications, a firmer Tier 2 follow-up is warranted before considering Tier 3 or human escalation."
+  },
+  {
+    "customer_id": "C006",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C007",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C008",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C009",
+    "classification": "green",
+    "pattern_noticed": "Consistent \"slightly_late\" payer with 23-invoice history averaging 27-28 days to pay; current invoice still within terms.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "The invoice is not yet past due (0 days overdue, still within the due date). Vineyard Hall Ltd has a highly predictable pattern of paying around 27 days after invoice date, with very low variance (std dev 2.2 days). This slight delay is their normal behavior and does not warrant a reminder while the invoice is still within terms. We can expect payment in the coming week based on their established pattern."
+  },
+  {
+    "customer_id": "C010",
+    "classification": "green",
+    "pattern_noticed": "Customer classified as slightly_late with predictable 8-day-late payment pattern; current invoice only 2 days past due and well within their normal 38-day payment window.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Ridgefield Corp Ltd consistently pays around 8 days past due (38 days from issue), which is their established, low-concern pattern over 23 invoices. The current invoice is only 2 days overdue and 32 days outstanding \u2014 still 6 days short of their typical payment timing. Sending a reminder would be premature for a customer with this predictable, slightly-late behavior."
+  },
+  {
+    "customer_id": "C011",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C012",
+    "classification": "amber",
+    "pattern_noticed": "Slightly-late customer paying exactly on their normal schedule; Tier 1 sent 6 days ago, still within reasonable response window.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-2217",
+      "body": "Hello Freya,\n\nI'm following up on our reminder sent on 11 May regarding Invoice INV-2026-2217 for \u00a36,996.44, which was due on 9 May and is now 8 days overdue. We have not yet received payment or a response to our previous email.\n\nCould you please confirm when we can expect payment, or let us know if there are any issues preventing settlement?\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Although only 6 days have passed since the Tier 1 reminder, the invoice is now 8 days past due and the customer has not responded. Given their slightly-late classification (avg 7 days late), they should have paid by now based on their historical pattern. A Tier 2 follow-up is appropriate to maintain consistent follow-up with this customer who reliably needs reminders."
+  },
+  {
+    "customer_id": "C013",
+    "classification": "amber",
+    "pattern_noticed": "Slightly-late payer showing recent deterioration; Tier 1 reminder sent 40 days ago received no response and invoice is now 12 days past due.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-2320",
+      "body": "Hello Oliver,\n\nWe are following up on invoice INV-2026-2320 for \u00a34,549.45, which was due on May 5th and is now 12 days overdue. We sent a reminder on May 7th but have not yet received a response.\n\nCould you please confirm payment status or let us know if there are any issues we can help resolve? We would appreciate your prompt attention to this matter.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Customer habitually pays 7-8 days late, so the current 12 days past due is only marginally worse than normal. However, a Tier 1 reminder was sent on May 7th with no response, and over 40 days have passed. The recent trend shows deterioration (drift of 8.8 days), warranting a firmer Tier 2 follow-up to re-engage the customer."
+  },
+  {
+    "customer_id": "C014",
+    "classification": "amber",
+    "pattern_noticed": "Moderately late payer showing deteriorating trend; Tier 1 sent 13 days ago with no response, invoice now 24 days past due.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-2414",
+      "body": "Hello Emma,\n\nWe are following up on invoice INV-2026-2414 for \u00a31,010.24, which was due on April 23, 2026 and is now 24 days overdue. We sent a reminder on April 25 but have not yet received a response or payment.\n\nPlease can you arrange payment or contact us to discuss if there are any issues? We value your business and want to resolve this promptly.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Customer consistently pays 15-30 days late (avg 24.8 days) but is trending worse recently (49 days vs 38.8 lifetime avg). Tier 1 reminder sent April 25 received no response, and invoice is now 24 days overdue. Escalation to Tier 2 is appropriate given the lack of engagement and deteriorating payment pattern."
+  },
+  {
+    "customer_id": "C015",
+    "classification": "red",
+    "pattern_noticed": "Moderately-late payer (typically 28 days late) with three overdue invoices totaling \u00a314,110.87 who has ignored all prior reminders including Tier 2 sent 45 days ago.",
+    "recommended_action": "send_tier_3",
+    "drafted_email": {
+      "subject": "Final Notice: Invoice INV-2026-2522",
+      "body": "Hello Grace Foster,\n\nThis is a final notice regarding Invoice INV-2026-2522 for \u00a36,154.45, which was due on 2026-04-17 and is now 30 days overdue (60 days outstanding). We sent reminders on 2026-04-19 and 2026-05-02 but have not received a response or payment.\n\nWe require immediate payment or contact to discuss this matter. If we do not hear from you within 7 days, we will be forced to consider further action, which may include suspending services or engaging a collections agency.\n\nPlease contact us urgently to resolve this outstanding balance.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "INV-2026-2522 (\u00a36,154.45) has progressed through Tier 1 (2026-04-19) and Tier 2 (2026-05-02) with no customer response and is now 30 days past due. This customer consistently pays late but their complete non-engagement across multiple invoices and reminder tiers escalates this to a final notice situation. Tier 3 is appropriate before considering further action."
+  },
+  {
+    "customer_id": "C016",
+    "classification": "red",
+    "pattern_noticed": "High-risk customer with three overdue invoices totaling \u00a32,844.72 (exceeding credit limit), all Tier 2 reminders ignored, and chronic late payment pattern averaging 47 days past due.",
+    "recommended_action": "escalate_to_human",
+    "drafted_email": null,
+    "reasoning": "This case requires human intervention due to multiple red flags: the customer has three open invoices exceeding their \u00a32,500 credit limit, has not responded to any Tier 2 reminders sent on all invoices, and is classified as high-risk with a 0.0 reliability score (never pays within terms). The oldest invoices are 68 days past due, and the pattern of complete non-engagement with reminders combined with chronic late payment behavior suggests this requires direct credit controller involvement rather than automated escalation to Tier 3."
+  },
+  {
+    "customer_id": "C017",
+    "classification": "amber",
+    "pattern_noticed": "Erratic payer who responded to Tier 1 reminder on 2026-04-28 promising payment by end of week but has not followed through; invoice now 21 days past due.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-2722",
+      "body": "Hello Mia,\n\nFollowing our reminder on 28 April 2026, invoice INV-2026-2722 for \u00a35,149.78 remains unpaid. This invoice was due on 26 April 2026 and is now 21 days overdue.\n\nWe understand you indicated payment would be made by the end of that week, but we have not yet received it. Could you please provide an update on when we can expect payment, or let us know if there are any issues we should be aware of?\n\nWe would appreciate your prompt attention to this matter.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Customer acknowledged the Tier 1 reminder and promised payment, but 19 days have passed with no payment received. With the invoice now 21 days past due and the customer classified as erratic (0% reliability, averages 23 days late), a firmer Tier 2 follow-up is warranted to reference the broken promise and secure payment."
+  },
+  {
+    "customer_id": "C018",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C019",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C020",
+    "classification": "green",
+    "pattern_noticed": "Invoice still within payment terms; customer classified as slightly late with improving trend (recent payments 6.6 days faster than historical average).",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "The invoice is not yet past due (0 days past due, currently at the 30-day mark matching their payment terms). This customer is classified as \"slightly_late\" which is predictable, low-concern behaviour averaging only 3.9 days late. Their recent trend is actually improving, with the last three invoices paid 6.6 days faster than their lifetime average. No reminder is warranted until the invoice becomes past due."
+  },
+  {
+    "customer_id": "C021",
+    "classification": "red",
+    "pattern_noticed": "Customer has insufficient payment history (only 2 invoices paid) but shows consistent slight lateness; Tier 1 sent 3 days ago with no response yet.",
+    "recommended_action": "escalate_to_human",
+    "drafted_email": null,
+    "reasoning": "Despite having a 15.7-month account history, only 2 invoices have been paid, triggering \"insufficient_data\" classification which requires human review per guidelines. The customer pays consistently 3 days late, and the current invoice at 5 days past due fits this pattern. A Tier 1 was sent just 3 days ago\u2014too soon to escalate tiers\u2014but the limited payment history prevents confident automated decision-making about whether to wait or act."
+  },
+  {
+    "customer_id": "C022",
+    "classification": "red",
+    "pattern_noticed": "High-risk customer with three overdue invoices totaling \u00a33,492 (exceeding \u00a31,000 credit limit), all with unanswered Tier 2 reminders.",
+    "recommended_action": "escalate_to_human",
+    "drafted_email": null,
+    "reasoning": "This customer has three invoices overdue by 31-61 days, totaling \u00a33,492.34, which significantly exceeds their \u00a31,000 credit limit. All three invoices have progressed through Tier 1 and Tier 2 reminders with zero customer response. Given the high-risk classification, credit limit breach, and consistent non-engagement across six communications, human intervention is needed to assess whether to send a final notice, suspend services, or initiate formal collection proceedings."
+  },
+  {
+    "customer_id": "C023",
+    "classification": "amber",
+    "pattern_noticed": "Customer consistently pays 10-13 days late with very low variance; current invoice at 40 days outstanding is within their normal pattern.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-3314",
+      "body": "Hello Charlie,\n\nWe are following up on our reminder sent on 9 May regarding Invoice INV-2026-3314 for \u00a35,569.84, which was due on 7 May and is now 10 days overdue. We have not yet received your response or payment.\n\nWe understand that payment processing can take time, but we would appreciate confirmation of when we can expect settlement. If there are any issues preventing payment, please let us know as soon as possible.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Tier 1 reminder was sent 9 days ago with no response, and the invoice is now 10 days past due. While this customer's \"slightly_late\" behavior is predictable and not concerning, a Tier 2 follow-up is warranted after an unanswered Tier 1. The tone should remain professional but firmer, acknowledging their typical payment pattern while requesting action."
+  },
+  {
+    "customer_id": "C024",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C025",
+    "classification": "amber",
+    "pattern_noticed": "Highly consistent moderately-late payer (always pays around day 42) has not responded to Tier 1 reminder sent 24 days ago.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-3523",
+      "body": "Hello Jack Hughes,\n\nWe are following up on invoice INV-2026-3523 for \u00a36,867.82, which was due on 21 April 2026 and is now 26 days overdue. We sent a reminder on 23 April but have not yet received a response.\n\nPlease arrange payment at your earliest convenience, or contact us if there are any issues we should be aware of.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Cedar Consulting is classified as moderately_late with a very predictable pattern of paying around 42 days from issue (28 days past terms). A Tier 1 reminder was sent on 2026-04-23 with no response, and more than 7 days have passed. While the invoice is still within their normal payment window, the lack of response to the first reminder warrants a firmer Tier 2 follow-up to maintain consistent pressure on this habitually late payer."
+  },
+  {
+    "customer_id": "C026",
+    "classification": "green",
+    "pattern_noticed": "Slightly late payer (avg 8 days past due) showing deteriorating trend, but current invoice only 2 days overdue, well within their normal pattern.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "While the invoice is technically 2 days past due, this customer consistently pays 8+ days late on average, and their recent three invoices all paid at 47-48 days from issue. At 32 days outstanding, this invoice is tracking normally for this customer's established pattern. Their slightly-late behavior is predictable and low-concern, so no action is warranted yet."
+  },
+  {
+    "customer_id": "C027",
+    "classification": "amber",
+    "pattern_noticed": "Slightly late payer with consistent 11-12 day delay pattern; Tier 1 sent 8 days ago without response, invoice now 10 days past due.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-3715",
+      "body": "Hello Mia Chen,\n\nWe are following up on invoice INV-2026-3715 for \u00a37,108.43, which was due on 7 May 2026 and is now 10 days overdue. We sent a reminder on 9 May but have not yet received a response.\n\nCould you please confirm when we can expect payment, or let us know if there are any issues we should be aware of?\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Underwood Ltd typically pays 11-12 days late, which is their normal pattern. However, a Tier 1 reminder sent on May 9th received no response, and the invoice is now 10 days past due. Given their \"slightly_late\" classification and the unanswered Tier 1, a firmer Tier 2 follow-up is appropriate to prompt payment while the amount (\u00a37,108) remains manageable."
+  },
+  {
+    "customer_id": "C028",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C029",
+    "classification": "amber",
+    "pattern_noticed": "Customer is consistently 11 days late across 17 invoices; current invoice at 40 days is tracking their predictable 41-day payment pattern.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-3917",
+      "body": "Hello Emma,\n\nThis is a follow-up to our reminder sent on 9 May regarding invoice INV-2026-3917 for \u00a35,062.35, which was due on 7 May and is now 10 days overdue. We have not yet received payment or a response to our previous email.\n\nCould you please arrange payment or let us know if there are any issues we should be aware of? We'd appreciate your prompt attention to this matter.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Tier 1 reminder was sent on May 9 with no response, and 8 days have passed. The invoice is now 10 days past due. While this customer habitually pays around 11 days late (which is their normal \"slightly_late\" pattern), the unanswered Tier 1 warrants a Tier 2 follow-up to maintain consistent communication discipline."
+  },
+  {
+    "customer_id": "C030",
+    "classification": "amber",
+    "pattern_noticed": "Erratic payer with improving trend who recently paid one invoice quickly but has not responded to Tier 1 reminder sent 18 days ago about a different invoice now 20 days past due.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-4019",
+      "body": "Hello Amelia,\n\nWe are following up on our reminder sent on 29 April regarding invoice INV-2026-4019 for \u00a3588.05, which was due on 27 April and is now 20 days overdue. We appreciate that you recently settled another invoice promptly, but we have not yet received payment or a response regarding this one.\n\nPlease arrange payment at your earliest convenience, or contact us if there are any issues we should be aware of.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "The customer has an erratic payment pattern, so we judge by days_past_due and prior comms rather than deviation metrics. A Tier 1 reminder was sent 18 days ago with no response, and the invoice is now 20 days past due, warranting a Tier 2 follow-up. While the customer recently paid another invoice quickly (showing engagement), they have not addressed this specific overdue invoice, so a firmer follow-up is appropriate."
+  },
+  {
+    "customer_id": "C031",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C032",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C033",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C034",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C035",
+    "classification": "green",
+    "pattern_noticed": "Slightly-late customer with consistent payment pattern (typically 9 days past due); current invoice only 2 days overdue and well within normal behavior range.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Wellington Park Ltd has a 20-month history of paying consistently around 9-10 days late (39 days on 30-day terms). The current invoice is only 2 days past due, which is normal for this customer and not concerning. Their pattern is stable and predictable, so no reminder is needed at this stage."
+  },
+  {
+    "customer_id": "C036",
+    "classification": "amber",
+    "pattern_noticed": "Slightly late payer with predictable 13-day average delay, showing recent deterioration; Tier 1 sent 8 days ago with no response.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-4614",
+      "body": "Hello Liam,\n\nWe are following up on our previous email sent on 9 May regarding invoice INV-2026-4614 for \u00a34,297.50, which was due on 7 May and is now 10 days overdue. We have not yet received payment or a response to our earlier reminder.\n\nCould you please confirm when we can expect payment, or let us know if there are any issues we should be aware of? We value our relationship with Alpine Logistics and want to ensure everything is in order.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "This customer consistently pays 10-15 days late (avg 12.9 days past due) but is trending slower recently (46.7 days vs 42.9 lifetime average). A Tier 1 reminder was sent on May 9th without response, and the invoice is now 10 days past due. A Tier 2 follow-up is warranted to maintain engagement and prevent further drift in their payment pattern."
+  },
+  {
+    "customer_id": "C037",
+    "classification": "green",
+    "pattern_noticed": "Slightly-late customer with consistent 40-day payment cycle; current invoice at 35 days is still within normal pattern, and Tier 1 reminder was sent only 3 days ago.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Noah Dubois consistently pays around 10 days late (40 days total) with very low variance. The current invoice at 35 days outstanding is actually earlier than his typical payment window. A Tier 1 reminder was sent just 3 days ago on 2026-05-14, which is too recent to warrant escalation to Tier 2. Following the 7+ day waiting period for tier escalation, no further action is needed at this time."
+  },
+  {
+    "customer_id": "C038",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C039",
+    "classification": "amber",
+    "pattern_noticed": "Normally pays 6.5 days early, but current invoice is 2.6 standard deviations slower than their consistent 19-month pattern with no response to Tier 1 reminder sent 13 days ago.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-4920",
+      "body": "Hello Grace,\n\nWe are following up on our email sent on 4th May regarding invoice INV-2026-4920 for \u00a35,088.26, which was due on 2nd May and is now 15 days overdue. We have not yet received payment or a response.\n\nCould you please confirm the status of this payment or let us know if there are any issues we can help resolve? Your account has an excellent track record with us, and we'd like to ensure everything is in order.\n\nWe would appreciate your prompt attention to this matter.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Crestview Ltd is a \"slow_but_consistent\" payer who typically settles around day 53, but INV-2026-4920 is now 75 days old (15 days overdue) and shows a 2.6 sigma deviation from their norm. A Tier 1 reminder was sent on 2026-05-04 with no response for 13 days, warranting a firmer Tier 2 follow-up. This is uncharacteristic behavior from an otherwise reliable customer that needs attention but doesn't yet require escalation."
+  },
+  {
+    "customer_id": "C040",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C041",
+    "classification": "amber",
+    "pattern_noticed": "Moderately late customer with highly consistent 42-day payment cycle; Tier 1 sent 24 days ago with no response.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-5122",
+      "body": "Hello Freya,\n\nWe are following up on invoice INV-2026-5122 for \u00a33,873.49, which was due on 21st April and is now 26 days overdue. We sent a reminder on 23rd April but have not yet received a response. Please could you confirm when we can expect payment, or let us know if there are any issues we should be aware of? We would appreciate your prompt attention to this matter.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Ashcroft Ltd consistently pays around 42-43 days from invoice date (28 days late). The current invoice at 40 days outstanding is typical for them, but a Tier 1 reminder sent on 2026-04-23 went unanswered for over three weeks. As a moderately late customer requiring consistent follow-up, a Tier 2 reminder is appropriate to maintain engagement before they drift further."
+  },
+  {
+    "customer_id": "C042",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C043",
+    "classification": "red",
+    "pattern_noticed": "Moderately late payer with two overdue invoices; Tier 1 and Tier 2 reminders sent for older invoice without any response.",
+    "recommended_action": "send_tier_3",
+    "drafted_email": {
+      "subject": "Final Notice: Invoice INV-2026-5323",
+      "body": "Hello Sarah,\n\nDespite our previous reminders on April 19 and May 2, invoice INV-2026-5323 for \u00a37,012.61 remains outstanding and is now 30 days past due (original due date: April 17, 2026). Additionally, invoice INV-2026-5322 for \u00a37,276.63 is also overdue (due date: May 2, 2026).\n\nWe require immediate payment of both invoices totalling \u00a314,289.24. If payment has already been made, please send confirmation. If there are any issues preventing payment, please contact us urgently.\n\nIf we do not receive payment or a response within 7 days, we will be forced to take further action, which may include suspending your account and pursuing formal collection procedures.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Invoice INV-2026-5323 is 30 days past due and has received both Tier 1 (April 19) and Tier 2 (May 2) reminders with no customer response. Given the customer's moderately late payment pattern and complete non-engagement with prior communications, a Tier 3 final notice is warranted before escalation. The second invoice INV-2026-5322 can be mentioned but the primary focus should be on the older, more severely overdue invoice."
+  },
+  {
+    "customer_id": "C044",
+    "classification": "green",
+    "pattern_noticed": "Open invoice(s) still well within terms; no action needed.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C045",
+    "classification": "green",
+    "pattern_noticed": "Customer has a consistent pattern of paying around 28 days from invoice date (14 days past due), and current invoice is still within terms.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "The invoice is not yet past due (0 days past due, only 10 days outstanding). This customer is classified as \"slightly_late\" with a very predictable pattern of paying around day 28 (avg 27.8 days, std dev only 1.8). Their habitual few-days-late pattern is normal for them and low-concern. No reminder is warranted until the invoice actually becomes past due."
+  },
+  {
+    "customer_id": "C046",
+    "classification": "green",
+    "pattern_noticed": "No outstanding invoices.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "Auto-classified by pre-filter: no overdue invoices, nothing approaching due, no unanswered reminders.",
+    "_source": "prefilter"
+  },
+  {
+    "customer_id": "C047",
+    "classification": "green",
+    "pattern_noticed": "Erratic payment pattern with high variance, but invoice is still within terms (due today, not yet past due)",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "The invoice is not yet past due (0 days_past_due), having just reached its due date today. Given the customer's erratic but ultimately paying behavior (18 invoices paid, avg 5.2 days late), it would be premature to send a reminder before they've actually missed the deadline. Monitor for follow-up if it goes past due in the coming days."
+  },
+  {
+    "customer_id": "C048",
+    "classification": "amber",
+    "pattern_noticed": "Moderately late payer with consistent 40-day payment cycle, Tier 1 sent 18 days ago with no response.",
+    "recommended_action": "send_tier_2",
+    "drafted_email": {
+      "subject": "Follow-up: Invoice INV-2026-5822",
+      "body": "Hello Grace,\n\nWe are following up on our previous reminder sent on 23 April regarding invoice INV-2026-5822 for \u00a31,403.85, which was due on 21 April and is now 26 days overdue.\n\nWe have not yet received payment or heard back from you. Please arrange payment at your earliest convenience, or contact us if there are any issues we should be aware of.\n\nKind regards,\nAccounts Receivable Team"
+    },
+    "reasoning": "Grace Rossi is classified as \"moderately_late\" and typically pays around 27 days past due. A Tier 1 reminder was sent on 2026-04-23 (18 days ago) with no response, and the invoice is now 26 days past due. Following standard escalation protocol for moderately late customers who don't respond to initial reminders, a Tier 2 follow-up is appropriate."
+  },
+  {
+    "customer_id": "C049",
+    "classification": "green",
+    "pattern_noticed": "Erratic payer with high variance but invoice still within terms despite customer typically paying 7-8 days late.",
+    "recommended_action": "no_action",
+    "drafted_email": null,
+    "reasoning": "While Yorkshire Trading Ltd has an erratic payment history and typically pays 7.5 days late, their current invoice is still within the 30-day payment terms (0 days past due). For erratic customers, the guidance is to judge by days_past_due rather than their volatility. No reminder is warranted until the invoice becomes overdue."
+  },
+  {
+    "customer_id": "C050",
+    "classification": "red",
+    "pattern_noticed": "Customer exceeded credit limit (\u00a31,388 invoice vs \u00a3500 limit), responded to Tier 1 reminder promising payment but has not followed through after 26 days.",
+    "recommended_action": "escalate_to_human",
+    "drafted_email": null,
+    "reasoning": "While this customer's payment pattern is predictably late (typically 27.9 days), the current invoice amount of \u00a31,388.17 significantly exceeds their \u00a3500 credit limit. Additionally, the customer responded to a Tier 1 reminder on April 21st promising payment by end of week but has not followed through. This combination of credit limit breach and broken promise requires human judgment on whether to adjust credit terms, pursue collection more aggressively, or restructure the arrangement."
+  }
+]
