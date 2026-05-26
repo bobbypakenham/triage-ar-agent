@@ -15,7 +15,8 @@ from src.stats import compute_payment_stats
 
 
 DATA_DIR = Path("data")
-TODAY = datetime(2026, 5, 17)  # Pretend "today" — keep aligned with generate_data.py
+def _today():
+    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 # ---------------------------------------------------------------------
@@ -28,10 +29,19 @@ def _load_json(filename):
         return json.load(f)
 
 
-# Loaded once when this module is imported
-_CUSTOMERS = _load_json("customers.json")
-_INVOICES = _load_json("invoices.json")
-_COMMUNICATIONS = _load_json("communications.json")
+def _load_all():
+    return (
+        _load_json("customers.json"),
+        _load_json("invoices.json"),
+        _load_json("communications.json") if (DATA_DIR / "communications.json").exists() else [],
+    )
+
+_CUSTOMERS, _INVOICES, _COMMUNICATIONS = _load_all()
+
+def reload_data():
+    """Reload all data files from disk. Call this after a CSV upload."""
+    global _CUSTOMERS, _INVOICES, _COMMUNICATIONS
+    _CUSTOMERS, _INVOICES, _COMMUNICATIONS = _load_all()
 
 
 # In-memory store for the agent's recommendations during a batch run.
@@ -67,7 +77,7 @@ def get_customer_profile(customer_id):
         return {"error": f"Customer {customer_id} not found"}
     
     account_opened_date = datetime.strptime(customer["account_opened"], "%Y-%m-%d")
-    account_age_days = (TODAY - account_opened_date).days
+    account_age_days = (_today() - account_opened_date).days
     account_age_months = round(account_age_days / 30, 1)
     
     return {
@@ -98,8 +108,8 @@ def get_open_invoices(customer_id):
         
         issue_date = datetime.strptime(inv["issue_date"], "%Y-%m-%d")
         due_date = datetime.strptime(inv["due_date"], "%Y-%m-%d")
-        days_outstanding = (TODAY - issue_date).days
-        days_past_due = max(0, (TODAY - due_date).days)
+        days_outstanding = (_today() - issue_date).days
+        days_past_due = max(0, (_today() - due_date).days)
         
         open_invoices.append({
             "invoice_id": inv["invoice_id"],
@@ -148,7 +158,7 @@ def get_communications_log(customer_id):
     if not customer:
         return {"error": f"Customer {customer_id} not found"}
     
-    sixty_days_ago = TODAY - timedelta(days=60)
+    sixty_days_ago = _today() - timedelta(days=60)
     
     # Identify which invoices to include comms for:
     # - All currently open/overdue invoices

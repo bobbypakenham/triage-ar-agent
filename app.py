@@ -7,10 +7,16 @@ Refresh data: python run.py (re-runs the batch), then reload browser
 """
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
+import pandas as pd
 from src import tools
+from src.csv_handler import (
+    load_csv, auto_detect_columns, validate_mapping,
+    normalise, summary_stats, REQUIRED_FIELDS, FIELD_PATTERNS,
+)
 
 # ─────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -25,7 +31,7 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────
-TODAY    = datetime(2026, 5, 17)
+TODAY    = datetime.now()
 RESULTS  = Path("briefings") / f"results_{TODAY.strftime('%Y-%m-%d')}.json"
 RUN_TIME = "06:14"
 DATE_LONG  = TODAY.strftime("%A %d %B %Y")
@@ -55,6 +61,9 @@ section.main {
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
 [data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarHeader"] button,
+section[data-testid="stSidebar"] > div > div:first-child > button,
 [data-testid="stStatusWidget"]      { display: none !important; }
 
 /* ── SIDEBAR BASE ── */
@@ -218,9 +227,13 @@ hr { border-color: #D6E8E4 !important; margin: 16px 0 !important; }
 # ─────────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_results():
-    if not RESULTS.exists():
+    if RESULTS.exists():
+        with open(RESULTS) as f:
+            return json.load(f)
+    fallback = sorted(Path("briefings").glob("results_*.json"))
+    if not fallback:
         return None
-    with open(RESULTS) as f:
+    with open(fallback[-1]) as f:
         return json.load(f)
 
 @st.cache_data
@@ -240,17 +253,6 @@ def get_invoices(cid): return tools.get_open_invoices(cid)
 def get_stats(cid):    return tools.get_payment_stats(cid)
 @st.cache_data
 def get_comms(cid):    return tools.get_communications_log(cid)
-
-data = load_results()
-if data is None:
-    st.error("No results file found. Run `python run.py` first.")
-    st.stop()
-
-red   = [r for r in data if r["classification"] == "red"]
-amber = [r for r in data if r["classification"] == "amber"]
-green = [r for r in data if r["classification"] == "green"]
-total_risk = sum(get_overdue(r["customer_id"]) for r in red + amber)
-
 
 # ─────────────────────────────────────────────────────────────────────
 # DESIGN HELPERS
@@ -299,6 +301,11 @@ def behavior_tag(b):
     return tag(label, bg, color)
 
 
+data  = load_results()
+red   = [r for r in data if r["classification"] == "red"]   if data else []
+amber = [r for r in data if r["classification"] == "amber"] if data else []
+green = [r for r in data if r["classification"] == "green"] if data else []
+
 # ─────────────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────────────
@@ -330,10 +337,18 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    def _clear_report():
+        st.session_state.pop("reports", None)
+
+    def _clear_nav():
+        st.session_state.pop("nav", None)
+
     page = st.radio(
         "nav",
-        ["Daily Briefing", "Action Queue", "Customers"],
+        ["Daily Briefing", "Action Queue", "Customers", "Upload Ledger"],
         label_visibility="collapsed",
+        key="nav",
+        on_change=_clear_report,
     )
 
     # ── Reports nav ──
@@ -344,16 +359,16 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div style="padding:0 10px;">
-        <div style="padding:8px 10px;border-radius:6px;cursor:not-allowed;opacity:0.5;">
-            <span style="font-size:0.84rem;color:#9FE1CB;">AR Analytics</span>
-        </div>
-        <div style="padding:8px 10px;border-radius:6px;cursor:not-allowed;opacity:0.5;">
-            <span style="font-size:0.84rem;color:#9FE1CB;">Run History</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    report = st.radio(
+        "reports",
+        ["AR Analytics", "Run History"],
+        label_visibility="collapsed",
+        index=None,
+        key="reports",
+        on_change=_clear_nav,
+    )
+    if report:
+        page = report
 
     # ── Today's snapshot ──
     st.markdown(f"""
@@ -404,6 +419,11 @@ with st.sidebar:
     </style>
     """, unsafe_allow_html=True)
 
+if data is None and "Upload" not in page:
+    st.warning("No results yet. Upload your ledger to get started.")
+    page = "Upload Ledger"
+
+total_risk = sum(get_overdue(r["customer_id"]) for r in red + amber)
 
 # ─────────────────────────────────────────────────────────────────────
 # TOPBAR
@@ -483,7 +503,7 @@ def customer_card(r, idx=0):
         f'</div>'
         f'<div style="text-align:right;flex-shrink:0;margin-left:16px;">'
         f'<div style="font-size:0.95rem;font-weight:700;color:{amt_color};'
-        f'font-family:\'DM Mono\',monospace;">£{overdue:,.2f}</div>'
+        f'font-family:\'DM Mono\',monospace;">€{overdue:,.2f}</div>'
         f'<div style="font-size:0.7rem;font-weight:600;color:{amt_color};'
         f'margin-top:1px;">{days_display}</div>'
         f'</div></div>'
@@ -565,7 +585,7 @@ if "Daily" in page:
                             margin-bottom:10px;">Total at risk</div>
                 <div style="font-size:1.55rem;font-weight:700;color:#fff;
                             font-family:'DM Mono',monospace;line-height:1.1;">
-                    £{total_risk:,.0f}
+                    €{total_risk:,.0f}
                 </div>
                 <div style="font-size:0.68rem;color:#9FE1CB;margin-top:6px;">
                     across {len(red)+len(amber)} accounts
@@ -663,7 +683,7 @@ if "Daily" in page:
                             <div style="font-size:0.95rem;font-weight:700;
                                         color:{AMT_COL[cls]};
                                         font-family:'DM Mono',monospace;">
-                                £{ov:,.2f}
+                                €{ov:,.2f}
                             </div>
                             {f'<div style="font-size:0.7rem;color:{AMT_COL[cls]};margin-top:2px;">+{dpd}d</div>' if dpd>0 else ''}
                         </div>
@@ -827,7 +847,7 @@ elif "Customer" in page:
                         {profile.get('customer_type','').title()} ·
                         {profile.get('contact_email','—')} ·
                         Net {profile.get('payment_terms_days',30)} terms ·
-                        £{profile.get('credit_limit',0):,} credit limit ·
+                        €{profile.get('credit_limit',0):,} credit limit ·
                         Account open {profile.get('account_age_months',0):.0f} months
                     </div>
                 </div>
@@ -888,7 +908,7 @@ elif "Customer" in page:
                         <div style="text-align:right;">
                             <div style="font-size:0.95rem;font-weight:700;color:#0A4A42;
                                         font-family:'DM Mono',monospace;">
-                                £{inv['amount']:,.2f}
+                                €{inv['amount']:,.2f}
                             </div>
                             <div style="font-size:0.7rem;font-weight:600;
                                         color:{sc};margin-top:2px;">{sl}</div>
@@ -967,3 +987,274 @@ elif "Customer" in page:
                         st.success("Ready to send")
                     if st.session_state.get(f"hdone_{cid}"):
                         st.code(st.session_state[f"hdone_{cid}"], language=None)
+# ─────────────────────────────────────────────────────────────────────
+# UPLOAD LEDGER PAGE
+# ─────────────────────────────────────────────────────────────────────
+elif "Upload" in page:
+    topbar()
+
+    FIELD_LABELS = {
+        "customer_name":  "Customer / Company Name",
+        "invoice_id":     "Invoice ID / Reference",
+        "amount":         "Amount Outstanding (€)",
+        "issue_date":     "Invoice Issue Date",
+        "due_date":       "Payment Due Date",
+        "contact_name":   "Contact Name (optional)",
+        "contact_email":  "Contact Email (optional)",
+        "payment_terms":  "Payment Terms — days (optional)",
+    }
+
+    st.markdown("""
+    <div style="padding:32px 0 8px;">
+        <div style="font-size:1.4rem;font-weight:700;color:#0A2E28;">Upload Ledger</div>
+        <div style="font-size:0.88rem;color:#5A7A74;margin-top:4px;">
+            Export your aged debtors report as a CSV from any accounting software
+            and upload it here. Triage will detect your column names automatically.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    uploaded_file = st.file_uploader(
+        "Choose your aged debtors CSV",
+        type=["csv"],
+        help="Xero: Reports → Aged Receivables → Export CSV",
+    )
+
+    if not uploaded_file:
+        st.info(
+            "**How to export:**\n\n"
+            "- **Xero** → Reports → Aged Receivables → Export → CSV\n"
+            "- **Sage** → Reports → Aged Debtors → Export → CSV\n"
+            "- **QuickBooks** → Reports → Accounts Receivable Ageing → Export → CSV\n"
+            "- **Excel / custom** → File → Save As → CSV (UTF-8)"
+        )
+    else:
+        try:
+            df = load_csv(uploaded_file)
+        except Exception as e:
+            st.error(f"Could not read CSV: {e}")
+            st.stop()
+
+        st.success(f"Loaded — {len(df):,} rows · {len(df.columns)} columns detected")
+
+        with st.expander("Preview first 5 rows"):
+            st.dataframe(df.head(5), use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("### Map your columns")
+        st.markdown(
+            "Triage has auto-detected your column names. "
+            "Check the matches below and correct any that look wrong."
+        )
+
+        auto    = auto_detect_columns(df)
+        options = ["(not in this file)"] + list(df.columns)
+        mapping = {}
+
+        col1, col2 = st.columns(2)
+        for i, field in enumerate(FIELD_PATTERNS.keys()):
+            label      = FIELD_LABELS.get(field, field)
+            required   = field in REQUIRED_FIELDS
+            auto_match = auto.get(field)
+            default    = options.index(auto_match) if auto_match in options else 0
+
+            with (col1 if i % 2 == 0 else col2):
+                selected = st.selectbox(
+                    f"{label} {'*' if required else ''}",
+                    options=options,
+                    index=default,
+                    key=f"map_{field}",
+                )
+                mapping[field] = None if selected == "(not in this file)" else selected
+
+        errors = validate_mapping(mapping)
+        if errors:
+            for err in errors:
+                st.warning(err)
+        else:
+            st.markdown("---")
+            if st.button("Run Triage on this ledger →", type="primary", use_container_width=True):
+                with st.spinner("Normalising ledger data..."):
+                    try:
+                        customers, invoices, skipped = normalise(df, mapping)
+                    except Exception as e:
+                        st.error(f"Normalisation failed: {e}")
+                        st.stop()
+
+                if skipped:
+                    st.warning(f"{skipped} rows skipped — missing date, amount, or customer name.")
+
+                stats = summary_stats(customers, invoices)
+
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Customers", stats["total_customers"])
+                c2.metric("Invoices", stats["total_invoices"])
+                c3.metric("Total outstanding", f"€{stats['total_outstanding']:,.2f}")
+                c4.metric("Overdue", f"€{stats['total_overdue']:,.2f}")
+
+                os.makedirs("data", exist_ok=True)
+                with open("data/customers.json", "w") as f:
+                    json.dump(customers, f, indent=2)
+                with open("data/invoices.json", "w") as f:
+                    json.dump(invoices, f, indent=2)
+                if not Path("data/communications.json").exists():
+                    with open("data/communications.json", "w") as f:
+                        json.dump([], f)
+
+                tools.reload_data()
+                st.cache_data.clear()
+
+                st.success(
+                    "Ledger saved. Go to **Daily Briefing** and click **Run Triage** to analyse your accounts."
+                )
+
+                with st.expander("Customers detected"):
+                    st.dataframe(
+                        pd.DataFrame(customers)[["customer_id", "company_name", "payment_terms_days"]],
+                        use_container_width=True,
+                    )
+
+# ─────────────────────────────────────────────────────────────────────
+# AR ANALYTICS PAGE
+# ─────────────────────────────────────────────────────────────────────
+elif "AR Analytics" in page:
+    topbar()
+    _, main, _ = st.columns([0.03, 0.94, 0.03])
+    with main:
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:1.4rem;font-weight:700;color:#0A2E28;margin-bottom:4px;'>AR Analytics</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.88rem;color:#5A7A74;margin-bottom:24px;'>Portfolio-level payment behaviour across all accounts.</div>", unsafe_allow_html=True)
+
+        if not data:
+            st.info("No results data available. Run a triage first.")
+        else:
+            all_c = tools.get_all_customers()
+
+            # ── Summary metrics ──
+            all_stats = [tools.get_payment_stats(c["customer_id"]) for c in all_c]
+            valid = [s for s in all_stats if s.get("avg_days_to_pay") is not None]
+            avg_dtp   = sum(s["avg_days_to_pay"] for s in valid) / len(valid) if valid else 0
+            avg_late  = sum(s["avg_days_late"]   for s in valid) / len(valid) if valid else 0
+            avg_rel   = sum(s["reliability_score"] for s in valid) / len(valid) if valid else 0
+
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Total Customers", len(all_c))
+            c2.metric("Avg Days to Pay", f"{avg_dtp:.1f}d")
+            c3.metric("Avg Days Late",   f"{avg_late:.1f}d")
+            c4.metric("Avg Reliability", f"{avg_rel:.0%}")
+
+            st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+            # ── Classification breakdown ──
+            from collections import Counter
+            cls_counts = Counter(r["classification"] for r in data)
+            beh_counts = Counter(
+                tools.get_payment_stats(c["customer_id"]).get("behavior_classification", "insufficient_data")
+                for c in all_c
+            )
+
+            col_a, col_b = st.columns(2)
+
+            with col_a:
+                st.markdown("<div style='font-size:0.72rem;font-weight:600;color:#4A6B65;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;'>Triage Classification</div>", unsafe_allow_html=True)
+                for label, color, key in [("Urgent (Red)", "#D85A30", "red"), ("Reminders (Amber)", "#EF9F27", "amber"), ("Clear (Green)", "#3B915A", "green")]:
+                    count = cls_counts.get(key, 0)
+                    pct   = count / len(data) * 100 if data else 0
+                    st.markdown(f"""
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <div style="width:10px;height:10px;border-radius:50%;background:{color};flex-shrink:0;"></div>
+                        <div style="flex:1;font-size:0.84rem;color:#0A2E28;">{label}</div>
+                        <div style="font-size:0.84rem;font-weight:600;color:{color};">{count}</div>
+                        <div style="font-size:0.78rem;color:#8AADA8;width:36px;text-align:right;">{pct:.0f}%</div>
+                    </div>""", unsafe_allow_html=True)
+
+            with col_b:
+                st.markdown("<div style='font-size:0.72rem;font-weight:600;color:#4A6B65;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;'>Payment Behaviour</div>", unsafe_allow_html=True)
+                beh_colors = {
+                    "high_risk": "#D85A30", "erratic": "#E87A3A",
+                    "moderately_late": "#EF9F27", "slightly_late": "#E8C05A",
+                    "deteriorating_reliable": "#B8A030",
+                    "reliable": "#3B915A", "slow_but_consistent": "#6A8A9A",
+                    "insufficient_data": "#9AADA8",
+                }
+                for beh, count in sorted(beh_counts.items(), key=lambda x: -x[1]):
+                    label = beh.replace("_", " ").title()
+                    color = beh_colors.get(beh, "#9AADA8")
+                    pct   = count / len(all_c) * 100
+                    st.markdown(f"""
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <div style="width:10px;height:10px;border-radius:50%;background:{color};flex-shrink:0;"></div>
+                        <div style="flex:1;font-size:0.84rem;color:#0A2E28;">{label}</div>
+                        <div style="font-size:0.84rem;font-weight:600;color:{color};">{count}</div>
+                        <div style="font-size:0.78rem;color:#8AADA8;width:36px;text-align:right;">{pct:.0f}%</div>
+                    </div>""", unsafe_allow_html=True)
+
+            # ── Top overdue ──
+            st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:0.72rem;font-weight:600;color:#4A6B65;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;'>Top 10 by Overdue Amount</div>", unsafe_allow_html=True)
+            overdue_rows = []
+            for c in all_c:
+                cid   = c["customer_id"]
+                name  = get_name(cid)
+                amt   = get_overdue(cid)
+                if amt > 0:
+                    rec   = next((r for r in data if r["customer_id"] == cid), None)
+                    cls   = rec["classification"] if rec else "green"
+                    overdue_rows.append({"name": name, "id": cid, "amount": amt, "cls": cls})
+            overdue_rows.sort(key=lambda x: -x["amount"])
+            for row in overdue_rows[:10]:
+                color = BORDERS[row["cls"]]
+                st.markdown(f"""
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                            padding:10px 16px;background:#fff;border:0.5px solid #D6E8E4;
+                            border-left:3px solid {color};border-radius:8px;margin-bottom:6px;">
+                    <div>
+                        <span style="font-size:0.88rem;font-weight:600;color:#0A2E28;">{row['name']}</span>
+                        <span style="font-size:0.72rem;color:#8AADA8;margin-left:8px;font-family:'DM Mono',monospace;">{row['id']}</span>
+                    </div>
+                    <div style="font-size:0.88rem;font-weight:600;color:{color};">€{row['amount']:,.2f}</div>
+                </div>""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────
+# RUN HISTORY PAGE
+# ─────────────────────────────────────────────────────────────────────
+elif "Run History" in page:
+    topbar()
+    _, main, _ = st.columns([0.03, 0.94, 0.03])
+    with main:
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:1.4rem;font-weight:700;color:#0A2E28;margin-bottom:4px;'>Run History</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.88rem;color:#5A7A74;margin-bottom:24px;'>All triage runs saved on this machine.</div>", unsafe_allow_html=True)
+
+        run_files = sorted(Path("briefings").glob("results_*.json"), reverse=True)
+        if not run_files:
+            st.info("No triage runs found.")
+        else:
+            for f in run_files:
+                try:
+                    with open(f) as fh:
+                        run_data = json.load(fh)
+                    date_str  = f.stem.replace("results_", "")
+                    r_count   = sum(1 for r in run_data if r["classification"] == "red")
+                    a_count   = sum(1 for r in run_data if r["classification"] == "amber")
+                    g_count   = sum(1 for r in run_data if r["classification"] == "green")
+                    total_exp = sum(
+                        sum(i["amount"] for i in tools.get_open_invoices(r["customer_id"]) if i["days_past_due"] > 0)
+                        for r in run_data if r["classification"] in ("red", "amber")
+                    )
+                    st.markdown(f"""
+                    <div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:10px;
+                                padding:16px 20px;margin-bottom:10px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div style="font-size:0.94rem;font-weight:600;color:#0A2E28;">{date_str}</div>
+                            <div style="font-size:0.84rem;color:#4A6B65;">€{total_exp:,.2f} at risk</div>
+                        </div>
+                        <div style="display:flex;gap:20px;margin-top:10px;">
+                            <span style="font-size:0.78rem;color:#D85A30;font-weight:600;">{r_count} urgent</span>
+                            <span style="font-size:0.78rem;color:#EF9F27;font-weight:600;">{a_count} reminders</span>
+                            <span style="font-size:0.78rem;color:#3B915A;font-weight:600;">{g_count} clear</span>
+                            <span style="font-size:0.78rem;color:#8AADA8;">{len(run_data)} total analysed</span>
+                        </div>
+                    </div>""", unsafe_allow_html=True)
+                except Exception:
+                    pass

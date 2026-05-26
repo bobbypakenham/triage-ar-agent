@@ -17,7 +17,8 @@ from src import tools
 from src.agent_claude import analyze_customer
 
 
-TODAY = datetime(2026, 5, 17)
+def _today():
+    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 # ---------------------------------------------------------------------
@@ -46,7 +47,7 @@ def _worth_analyzing(customer_id):
             return True
         # Approaching due date (within 7 days) → analyze
         due_date = datetime.strptime(inv["due_date"], "%Y-%m-%d")
-        days_until_due = (due_date - TODAY).days
+        days_until_due = (due_date - _today()).days
         if 0 <= days_until_due <= 7:
             return True
 
@@ -160,7 +161,7 @@ def _save_results(results):
     briefings_dir = Path("briefings")
     briefings_dir.mkdir(exist_ok=True)
 
-    date_str = TODAY.strftime("%Y-%m-%d")
+    date_str = _today().strftime("%Y-%m-%d")
     output_path = briefings_dir / f"results_{date_str}.json"
 
     with open(output_path, "w") as f:
