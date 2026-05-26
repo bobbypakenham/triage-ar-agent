@@ -17,6 +17,7 @@ from src.csv_handler import (
     load_csv, auto_detect_columns, validate_mapping,
     normalise, summary_stats, REQUIRED_FIELDS, FIELD_PATTERNS,
 )
+from src.orchestrator import run_batch
 
 # ─────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -33,7 +34,6 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────────
 TODAY    = datetime.now()
 RESULTS  = Path("briefings") / f"results_{TODAY.strftime('%Y-%m-%d')}.json"
-RUN_TIME = "06:14"
 DATE_LONG  = TODAY.strftime("%A %d %B %Y")
 DATE_SHORT = TODAY.strftime("%Y-%m-%d")
 
@@ -225,20 +225,21 @@ hr { border-color: #D6E8E4 !important; margin: 16px 0 !important; }
 # ─────────────────────────────────────────────────────────────────────
 # DATA
 # ─────────────────────────────────────────────────────────────────────
-@st.cache_data
 def load_results():
-    if RESULTS.exists():
-        with open(RESULTS) as f:
-            return json.load(f)
-    fallback = sorted(Path("briefings").glob("results_*.json"))
-    if not fallback:
-        return None
-    with open(fallback[-1]) as f:
-        return json.load(f)
+    target = RESULTS if RESULTS.exists() else None
+    if not target:
+        candidates = sorted(Path("briefings").glob("results_*.json"))
+        if candidates:
+            target = candidates[-1]
+    if not target:
+        return None, "—"
+    mtime = datetime.fromtimestamp(target.stat().st_mtime).strftime("%H:%M")
+    with open(target) as f:
+        return json.load(f), mtime
 
 @st.cache_data
 def get_name(cid):
-    p = tools.get_customer_profile(cid)
+    p = get_profile(cid)
     return p.get("company_name") or p.get("contact_name") or cid
 
 @st.cache_data
@@ -315,7 +316,7 @@ def behavior_tag(b):
     return tag(label, bg, color)
 
 
-data  = load_results()
+data, RUN_TIME = load_results()
 red   = [r for r in data if r["classification"] == "red"]   if data else []
 amber = [r for r in data if r["classification"] == "amber"] if data else []
 green = [r for r in data if r["classification"] == "green"] if data else []
@@ -433,9 +434,11 @@ with st.sidebar:
     </style>
     """, unsafe_allow_html=True)
 
-if data is None and "Upload" not in page:
-    st.warning("No results yet. Upload your ledger to get started.")
-    page = "Upload Ledger"
+has_customers = len(tools.get_all_customers()) > 0
+if data is None and "Upload" not in page and "Daily" not in page:
+    if not has_customers:
+        st.warning("No data yet. Upload your ledger to get started.")
+        page = "Upload Ledger"
 
 total_risk = sum(get_overdue(r["customer_id"]) for r in red + amber)
 
@@ -530,7 +533,7 @@ def customer_card(r, idx=0):
 
         # Row 3: pattern noticed
         f'<div style="font-size:0.8rem;color:#3A5A54;line-height:1.55;">'
-        f'{r["pattern_noticed"]}</div>'
+        f'{r.get("pattern_noticed", "—")}</div>'
 
         f'</div>'
     )
@@ -588,9 +591,22 @@ if "Daily" in page:
 
     _, main, _ = st.columns([0.03, 0.94, 0.03])
     with main:
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+        # ── RUN TRIAGE PROMPT ──
+        if data is None:
+            if not has_customers:
+                st.info("Upload your ledger first to get started.")
+                st.stop()
+            st.info("Ledger uploaded. Run triage to analyse your accounts.")
+            if st.button("Run Triage", type="primary"):
+                with st.spinner("Analysing accounts… this takes a few minutes."):
+                    run_batch(verbose=False)
+                st.cache_data.clear()
+                st.rerun()
+            st.stop()
 
         # ── STAT CARDS ──
-        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
 
         with c1:
@@ -694,7 +710,7 @@ if "Daily" in page:
                                          font-family:'DM Mono',monospace;
                                          margin-left:7px;">{cid}</span>
                             <div style="font-size:0.74rem;color:#5A7A74;margin-top:4px;">
-                                {r['pattern_noticed'][:90]}{'…' if len(r['pattern_noticed'])>90 else ''}
+                                {r.get('pattern_noticed', '—')[:90]}{'…' if len(r.get('pattern_noticed', '—'))>90 else ''}
                             </div>
                         </div>
                         <div style="text-align:right;flex-shrink:0;margin-left:16px;">
@@ -718,7 +734,7 @@ if "Daily" in page:
             """, unsafe_allow_html=True)
             rows = [{"Customer": get_name(r["customer_id"]),
                      "ID": r["customer_id"],
-                     "Note": r["pattern_noticed"]} for r in green]
+                     "Note": r.get('pattern_noticed', '—')} for r in green]
             st.dataframe(rows, use_container_width=True, hide_index=True,
                 column_config={
                     "Customer": st.column_config.TextColumn(width="medium"),
@@ -759,7 +775,7 @@ if "Daily" in page:
         with t_green:
             rows = [{"Customer": get_name(r["customer_id"]),
                      "ID": r["customer_id"],
-                     "Note": r["pattern_noticed"],
+                     "Note": r.get('pattern_noticed', '—'),
                      "Source": "Agent" if not r.get("_source") else "Pre-filter"
                      } for r in green]
             st.dataframe(rows, use_container_width=True, hide_index=True,
@@ -849,7 +865,7 @@ elif "Customer" in page:
 
         # ── PROFILE HEADER ──
         _credit  = f"€{profile['credit_limit']:,} credit limit" if profile.get('credit_limit') else '—'
-        _acct    = f"Account open {profile['account_age_months']:.0f} months" if profile.get('account_age_months') else '—'
+        _acct    = f"Account open {profile['account_age_months']:.0f} months" if profile.get('account_age_months') is not None else '—'
         _email   = profile.get('contact_email') or '—'
         _type    = (profile.get('customer_type') or '').title()
         _terms   = profile.get('payment_terms_days') or 30
@@ -877,17 +893,21 @@ elif "Customer" in page:
 
         # ── STATS ROW ──
         scols = st.columns(5)
+        _dtp  = stats.get('avg_days_to_pay')
+        _dl   = stats.get('avg_days_late')
+        _rel  = stats.get('reliability_score')
+        _trend = stats.get('trend') or '—'
+        _beh  = stats.get('behavior_classification') or '—'
         s_items = [
-            ("Avg Days to Pay",  f"{stats.get('avg_days_to_pay') or '—'}d",  "#0A4A42"),
-            ("Avg Days Late",    f"{stats.get('avg_days_late') or '—'}d",
-             "#854F0B" if (stats.get('avg_days_late') or 0)>0 else "#3B6D11"),
-            ("Reliability",      f"{stats.get('reliability_score') or 0:.0%}",
-             "#3B6D11" if (stats.get('reliability_score') or 0)>0.7 else "#993C1D"),
-            ("Trend",            (stats.get('trend') or '—').title(),
-             "#993C1D" if stats.get('trend')=='deteriorating' else
-             "#854F0B" if stats.get('trend')=='stable' else "#3B6D11"),
-            ("Classification",   (stats.get('behavior_classification') or '—').replace('_',' ').title(),
-             "#0A4A42"),
+            ("Avg Days to Pay",  f"{_dtp:.1f}d" if _dtp is not None else "—",  "#0A4A42"),
+            ("Avg Days Late",    f"{_dl:.1f}d"  if _dl  is not None else "—",
+             "#854F0B" if (_dl or 0)>0 else "#3B6D11"),
+            ("Reliability",      f"{_rel:.0%}"  if _rel is not None else "—",
+             "#3B6D11" if (_rel or 0)>0.7 else "#993C1D"),
+            ("Trend",            _trend.title(),
+             "#993C1D" if _trend=='deteriorating' else
+             "#854F0B" if _trend=='stable' else "#3B6D11"),
+            ("Classification",   _beh.replace('_',' ').title(), "#0A4A42"),
         ]
         for col, (lbl, val, color) in zip(scols, s_items):
             with col:
@@ -975,7 +995,7 @@ elif "Customer" in page:
                                 margin-bottom:8px;">Pattern Noticed</div>
                     <div style="font-size:0.85rem;color:#1A3A34;background:#F0F7F5;
                                 border-radius:6px;padding:10px 14px;margin-bottom:16px;
-                                line-height:1.55;">{rec['pattern_noticed']}</div>
+                                line-height:1.55;">{rec.get('pattern_noticed', '—')}</div>
                     <div style="font-size:0.72rem;font-weight:600;color:#6B9E94;
                                 text-transform:uppercase;letter-spacing:0.06em;
                                 margin-bottom:8px;">Reasoning</div>
