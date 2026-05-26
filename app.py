@@ -859,14 +859,14 @@ elif "Customer" in page:
                         <span style="font-size:0.72rem;color:#8AADA8;
                                      font-family:'DM Mono',monospace;">{cid}</span>
                         {cls_tag(cls) if rec else ''}
-                        {action_tag(rec['recommended_action']) if rec else ''}
+                        {action_tag(rec['recommended_action']) if rec and rec['recommended_action'] != 'no_action' else ''}
                     </div>
                     <div style="font-size:0.78rem;color:#4A6B65;line-height:1.7;">
                         {(profile.get('customer_type') or '').title()} ·
                         {profile.get('contact_email') or '—'} ·
                         Net {profile.get('payment_terms_days') or 30} terms ·
-                        €{profile.get('credit_limit') or 0:,} credit limit ·
-                        Account open {profile.get('account_age_months') or 0:.0f} months
+                        {'€{:,} credit limit'.format(profile['credit_limit']) if profile.get('credit_limit') else '—'} ·
+                        {'Account open {:,.0f} months'.format(profile['account_age_months']) if profile.get('account_age_months') else '—'}
                     </div>
                 </div>
             </div>
