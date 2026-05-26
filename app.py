@@ -848,6 +848,13 @@ elif "Customer" in page:
         name     = get_name(cid)
 
         # ── PROFILE HEADER ──
+        _credit  = f"€{profile['credit_limit']:,} credit limit" if profile.get('credit_limit') else '—'
+        _acct    = f"Account open {profile['account_age_months']:.0f} months" if profile.get('account_age_months') else '—'
+        _email   = profile.get('contact_email') or '—'
+        _type    = (profile.get('customer_type') or '').title()
+        _terms   = profile.get('payment_terms_days') or 30
+        _atag    = action_tag(rec['recommended_action']) if rec and rec['recommended_action'] != 'no_action' else ''
+        _ctag    = cls_tag(cls) if rec else ''
         st.markdown(f"""
         <div style="background:#fff;border:0.5px solid #D6E8E4;
                     border-left:4px solid {BORDERS[cls]};border-radius:10px;
@@ -858,15 +865,10 @@ elif "Customer" in page:
                         <span style="font-size:1.1rem;font-weight:700;color:#0A2E28;">{name}</span>
                         <span style="font-size:0.72rem;color:#8AADA8;
                                      font-family:'DM Mono',monospace;">{cid}</span>
-                        {cls_tag(cls) if rec else ''}
-                        {action_tag(rec['recommended_action']) if rec and rec['recommended_action'] != 'no_action' else ''}
+                        {_ctag}{_atag}
                     </div>
                     <div style="font-size:0.78rem;color:#4A6B65;line-height:1.7;">
-                        {(profile.get('customer_type') or '').title()} ·
-                        {profile.get('contact_email') or '—'} ·
-                        Net {profile.get('payment_terms_days') or 30} terms ·
-                        {'€{:,} credit limit'.format(profile['credit_limit']) if profile.get('credit_limit') else '—'} ·
-                        {'Account open {:,.0f} months'.format(profile['account_age_months']) if profile.get('account_age_months') else '—'}
+                        {_type} · {_email} · Net {_terms} terms · {_credit} · {_acct}
                     </div>
                 </div>
             </div>
