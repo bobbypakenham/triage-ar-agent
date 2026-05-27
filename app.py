@@ -592,8 +592,18 @@ if "Daily" in page:
             st.info("Ledger uploaded. Run triage to analyse your accounts.")
             if st.button("Run Triage", type="primary"):
                 with st.spinner("Analysing accounts… this takes a few minutes."):
-                    from src.orchestrator import run_batch
-                    run_batch(verbose=False)
+                    try:
+                        from src.orchestrator import run_batch   # lazy — do NOT move to top
+                        run_batch(verbose=False)
+                    except Exception as e:
+                        err = str(e)
+                        if "rate_limit" in err.lower() or "ratelimit" in err.lower() or "429" in err:
+                            st.error("Anthropic API rate limit reached. Wait a minute and try again, or check your API plan at console.anthropic.com.")
+                        elif "api_key" in err.lower() or "authentication" in err.lower() or "401" in err:
+                            st.error("Anthropic API key missing or invalid. Add ANTHROPIC_API_KEY to your Streamlit secrets.")
+                        else:
+                            st.error(f"Triage run failed: {err}")
+                        st.stop()
                 st.cache_data.clear()
                 st.rerun()
             st.stop()

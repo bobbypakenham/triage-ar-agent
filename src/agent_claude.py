@@ -13,6 +13,7 @@ Both expose the same analyze_customer() function.
 
 import json
 import os
+import time
 from dotenv import load_dotenv
 import anthropic
 
@@ -167,6 +168,32 @@ def _log(message):
     print(f"  [agent] {message}")
 
 
+def _call_with_retry(client, messages, max_retries=3):
+    """Call the Claude API with exponential backoff on rate limit errors."""
+    for attempt in range(max_retries):
+        try:
+            return client.messages.create(
+                model=MODEL_NAME,
+                max_tokens=MAX_TOKENS_PER_RESPONSE,
+                system=SYSTEM_PROMPT,
+                tools=TOOL_SCHEMAS,
+                messages=messages,
+            )
+        except anthropic.RateLimitError as e:
+            if attempt == max_retries - 1:
+                raise
+            wait = 30 * (2 ** attempt)  # 30s, 60s, 120s
+            _log(f"Rate limit hit — waiting {wait}s before retry {attempt + 2}/{max_retries}")
+            time.sleep(wait)
+        except anthropic.APIStatusError as e:
+            if e.status_code in (500, 529) and attempt < max_retries - 1:
+                wait = 10 * (2 ** attempt)
+                _log(f"API error {e.status_code} — waiting {wait}s before retry")
+                time.sleep(wait)
+            else:
+                raise
+
+
 # ---------------------------------------------------------------------
 # The main entry point
 # ---------------------------------------------------------------------
@@ -194,13 +221,7 @@ def analyze_customer(customer_id, verbose=True):
         if verbose:
             _log(f"Iteration {iteration + 1}: calling Claude")
         
-        response = client.messages.create(
-            model=MODEL_NAME,
-            max_tokens=MAX_TOKENS_PER_RESPONSE,
-            system=SYSTEM_PROMPT,
-            tools=TOOL_SCHEMAS,
-            messages=messages,
-        )
+        response = _call_with_retry(client, messages)
         
         # Claude returns content as a list of "blocks". Each block is either
         # text or a tool_use. We append the whole assistant message as-is.
