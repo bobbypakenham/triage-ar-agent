@@ -95,11 +95,28 @@ def init_db():
             ON batch_results(run_date);
         """)
 
-        # Migrate existing databases that predate the run_time column
-        try:
-            conn.execute("ALTER TABLE batch_results ADD COLUMN run_time TEXT")
-        except Exception:
-            pass
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS email_approvals (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            approved_at     TEXT NOT NULL,
+            customer_id     TEXT NOT NULL,
+            invoice_id      TEXT,
+            run_date        TEXT NOT NULL,
+            original_body   TEXT,
+            approved_body   TEXT,
+            was_edited      INTEGER NOT NULL DEFAULT 0
+        );
+        """)
+
+        # Columns added after initial schema — safe to re-run, silently ignored if present
+        for stmt in [
+            "ALTER TABLE batch_results ADD COLUMN run_time TEXT",
+            "ALTER TABLE invoices ADD COLUMN amount_paid REAL",
+        ]:
+            try:
+                conn.execute(stmt)
+            except Exception:
+                pass
 
 
 def init_and_migrate():
@@ -230,7 +247,7 @@ def get_open_invoices(customer_id: str) -> list:
                    julianday(?) - julianday(issue_date) AS days_outstanding,
                    julianday(?) - julianday(due_date)   AS days_past_due
             FROM invoices
-            WHERE customer_id = ? AND status IN ('open', 'overdue')
+            WHERE customer_id = ? AND status IN ('open', 'overdue', 'partial')
             ORDER BY due_date ASC
         """, (today, today, customer_id)).fetchall()
 
@@ -254,13 +271,42 @@ def get_all_invoices(customer_id: str) -> list:
         return [dict(r) for r in rows]
 
 
-def mark_invoice_paid(invoice_id: str, paid_date: str):
+def get_paid_invoices(customer_id: str) -> list:
+    """Return all paid (and partial) invoices for the audit trail, newest first."""
     with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM invoices
+            WHERE customer_id = ? AND status IN ('paid', 'partial')
+            ORDER BY paid_date DESC
+        """, (customer_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def mark_invoice_paid(invoice_id: str, paid_date: str, amount_paid: float = None):
+    """
+    Mark an invoice as paid (or partial if amount_paid < invoice amount).
+    amount_paid=None means fully paid for the invoice amount.
+    """
+    now = datetime.now().isoformat()
+    with get_conn() as conn:
+        inv = conn.execute(
+            "SELECT amount FROM invoices WHERE invoice_id = ?", (invoice_id,)
+        ).fetchone()
+        if not inv:
+            return
+
+        full_amount = inv["amount"]
+        if amount_paid is None or round(amount_paid, 2) >= round(full_amount, 2):
+            status = "paid"
+            amount_paid = full_amount
+        else:
+            status = "partial"
+
         conn.execute("""
             UPDATE invoices
-            SET status = 'paid', paid_date = ?, last_updated = ?
+            SET status = ?, paid_date = ?, amount_paid = ?, last_updated = ?
             WHERE invoice_id = ?
-        """, (paid_date, datetime.now().isoformat(), invoice_id))
+        """, (status, paid_date, round(amount_paid, 2), now, invoice_id))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -297,6 +343,29 @@ def get_communications(customer_id: str) -> list:
             c["customer_responded"] = bool(c["customer_responded"])
             result.append(c)
         return result
+
+
+# ─────────────────────────────────────────────────────────────────────
+# EMAIL APPROVALS
+# ─────────────────────────────────────────────────────────────────────
+
+def log_email_approval(customer_id: str, run_date: str, original_body: str,
+                       approved_body: str, invoice_id: str = None):
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO email_approvals
+                (approved_at, customer_id, invoice_id, run_date,
+                 original_body, approved_body, was_edited)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            datetime.now().isoformat(),
+            customer_id,
+            invoice_id,
+            run_date,
+            original_body,
+            approved_body,
+            1 if approved_body != original_body else 0,
+        ))
 
 
 # ─────────────────────────────────────────────────────────────────────

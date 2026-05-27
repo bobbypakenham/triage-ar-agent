@@ -557,6 +557,12 @@ def customer_card(r, idx=0):
                 if st.button("Approve & Copy",
                              key=f"approve_{cid}_{idx}",
                              type="primary"):
+                    database.log_email_approval(
+                        customer_id=cid,
+                        run_date=r.get("run_date", DATE_SHORT),
+                        original_body=email["body"],
+                        approved_body=edited,
+                    )
                     st.session_state[f"done_{cid}_{idx}"] = edited
                     st.success("✅ Ready to send")
             with c2:
@@ -919,40 +925,104 @@ elif "Customer" in page:
                 """, unsafe_allow_html=True)
 
         # ── HISTORY TABS ──
-        ht1, ht2, ht3 = st.tabs(["Open Invoices", "Communications", "AI Recommendation"])
+        ht1, ht2, ht3, ht4 = st.tabs(["Open Invoices", "Paid Invoices", "Communications", "AI Recommendation"])
 
         with ht1:
             if not invoices:
                 st.success("No open invoices.")
             else:
                 for inv in invoices:
-                    dpd = inv.get("days_past_due", 0)
-                    sc  = "#993C1D" if dpd > 0 else "#3B6D11"
-                    sl  = f"+{dpd}d overdue" if dpd > 0 else "Within terms"
-                    st.markdown(f"""
-                    <div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:8px;
-                                padding:14px 18px;margin-bottom:8px;
-                                display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <div style="font-size:0.84rem;font-weight:600;color:#0A2E28;
-                                        font-family:'DM Mono',monospace;">{inv['invoice_id']}</div>
-                            <div style="font-size:0.73rem;color:#5A7A74;margin-top:3px;">
-                                Issued {inv['issue_date']} · Due {inv['due_date']} ·
-                                {inv['days_outstanding']}d outstanding
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:0.95rem;font-weight:700;color:#0A4A42;
-                                        font-family:'DM Mono',monospace;">
-                                €{inv['amount']:,.2f}
-                            </div>
-                            <div style="font-size:0.7rem;font-weight:600;
-                                        color:{sc};margin-top:2px;">{sl}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    dpd      = inv.get("days_past_due", 0)
+                    is_part  = inv.get("status") == "partial"
+                    amt_paid = inv.get("amount_paid") or 0
+                    remaining = round(inv["amount"] - amt_paid, 2) if is_part else inv["amount"]
+                    sc = "#E8850B" if is_part else ("#993C1D" if dpd > 0 else "#3B6D11")
+                    if is_part:
+                        sl = f"Partial — €{remaining:,.2f} remaining"
+                    elif dpd > 0:
+                        sl = f"+{dpd}d overdue"
+                    else:
+                        sl = "Within terms"
+
+                    inv_col, btn_col = st.columns([0.85, 0.15])
+                    with inv_col:
+                        st.markdown(
+                            f'<div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:8px;'
+                            f'padding:14px 18px;margin-bottom:4px;'
+                            f'display:flex;justify-content:space-between;align-items:center;">'
+                            f'<div>'
+                            f'<div style="font-size:0.84rem;font-weight:600;color:#0A2E28;'
+                            f'font-family:\'DM Mono\',monospace;">{inv["invoice_id"]}'
+                            f'{"&nbsp;<span style=\'background:#FEF1E2;color:#8A4B00;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:3px;\'>PARTIAL</span>" if is_part else ""}'
+                            f'</div>'
+                            f'<div style="font-size:0.73rem;color:#5A7A74;margin-top:3px;">'
+                            f'Issued {inv["issue_date"]} · Due {inv["due_date"]} · {inv["days_outstanding"]}d outstanding'
+                            f'</div></div>'
+                            f'<div style="text-align:right;">'
+                            f'<div style="font-size:0.95rem;font-weight:700;color:#0A4A42;'
+                            f'font-family:\'DM Mono\',monospace;">€{inv["amount"]:,.2f}</div>'
+                            f'<div style="font-size:0.7rem;font-weight:600;color:{sc};margin-top:2px;">{sl}</div>'
+                            f'</div></div>',
+                            unsafe_allow_html=True
+                        )
+                    with btn_col:
+                        fkey = f"show_paid_{inv['invoice_id']}"
+                        if st.button("Mark as Paid", key=f"maspbtn_{inv['invoice_id']}",
+                                     use_container_width=True):
+                            st.session_state[fkey] = not st.session_state.get(fkey, False)
+
+                    if st.session_state.get(f"show_paid_{inv['invoice_id']}"):
+                        with st.form(key=f"paid_form_{inv['invoice_id']}"):
+                            fc1, fc2, fc3 = st.columns([2, 2, 1])
+                            amount_paid_val = fc1.number_input(
+                                "Amount paid (€)",
+                                min_value=0.01,
+                                max_value=float(inv["amount"]),
+                                value=float(remaining),
+                                step=0.01,
+                            )
+                            from datetime import date as _date
+                            date_paid_val = fc2.date_input("Date paid", value=_date.today())
+                            confirmed = fc3.form_submit_button("Confirm", type="primary")
+                            if confirmed:
+                                database.mark_invoice_paid(
+                                    inv["invoice_id"],
+                                    date_paid_val.isoformat(),
+                                    amount_paid_val,
+                                )
+                                st.session_state.pop(f"show_paid_{inv['invoice_id']}", None)
+                                st.cache_data.clear()
+                                st.success(f"{inv['invoice_id']} marked as paid")
+                                st.rerun()
 
         with ht2:
+            paid_invs = database.get_paid_invoices(cid)
+            if not paid_invs:
+                st.info("No paid invoices on record.")
+            else:
+                for inv in paid_invs:
+                    is_part   = inv.get("status") == "partial"
+                    amt_paid  = inv.get("amount_paid") or inv["amount"]
+                    tag       = '&nbsp;<span style="background:#FEF1E2;color:#8A4B00;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:3px;">PARTIAL</span>' if is_part else ''
+                    st.markdown(
+                        f'<div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:8px;'
+                        f'padding:12px 18px;margin-bottom:6px;'
+                        f'display:flex;justify-content:space-between;align-items:center;">'
+                        f'<div>'
+                        f'<div style="font-size:0.84rem;font-weight:600;color:#0A2E28;'
+                        f'font-family:\'DM Mono\',monospace;">{inv["invoice_id"]}{tag}</div>'
+                        f'<div style="font-size:0.73rem;color:#5A7A74;margin-top:3px;">'
+                        f'Issued {inv["issue_date"]} · Paid {inv.get("paid_date", "—")}'
+                        f'</div></div>'
+                        f'<div style="text-align:right;">'
+                        f'<div style="font-size:0.95rem;font-weight:700;color:#3B6D11;'
+                        f'font-family:\'DM Mono\',monospace;">€{amt_paid:,.2f}</div>'
+                        f'<div style="font-size:0.7rem;color:#5A7A74;margin-top:2px;">of €{inv["amount"]:,.2f}</div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True
+                    )
+
+        with ht3:
             if not comms:
                 st.info("No prior communications on record.")
             else:
@@ -978,7 +1048,7 @@ elif "Customer" in page:
                     </div>
                     """, unsafe_allow_html=True)
 
-        with ht3:
+        with ht4:
             if not rec:
                 st.info("Auto-classified — no agent recommendation generated.")
             else:
@@ -1019,6 +1089,12 @@ elif "Customer" in page:
                                             height=160, key=f"hist_{cid}",
                                             label_visibility="collapsed")
                     if st.button("Approve & Copy", key=f"happrove_{cid}", type="primary"):
+                        database.log_email_approval(
+                            customer_id=cid,
+                            run_date=rec.get("run_date", DATE_SHORT),
+                            original_body=email["body"],
+                            approved_body=edited_h,
+                        )
                         st.session_state[f"hdone_{cid}"] = edited_h
                         st.success("Ready to send")
                     if st.session_state.get(f"hdone_{cid}"):
