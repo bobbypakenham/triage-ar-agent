@@ -151,20 +151,25 @@ def run_batch(verbose=True, limit=None):
 
 
 def _save_results(results):
-    """Save batch results to a timestamped JSON file in briefings/."""
+    """Save batch results to SQLite and a JSON file in briefings/."""
     import json
     from pathlib import Path
+    from src import database
+
+    run_date = _today().strftime("%Y-%m-%d")
+    run_time = datetime.now().strftime("%H:%M")
+
+    for r in results:
+        r_with_meta = {**r, "run_date": run_date, "run_time": run_time}
+        database.save_batch_result(r_with_meta)
 
     briefings_dir = Path("briefings")
     briefings_dir.mkdir(exist_ok=True)
-
-    date_str = _today().strftime("%Y-%m-%d")
-    output_path = briefings_dir / f"results_{date_str}.json"
-
+    output_path = briefings_dir / f"results_{run_date}.json"
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2, default=str)
 
-    print(f"Results saved to {output_path}")
+    print(f"Results saved to {output_path} and SQLite")
 
 
 # ---------------------------------------------------------------------

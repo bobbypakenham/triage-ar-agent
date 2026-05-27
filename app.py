@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 import streamlit as st
 import pandas as pd
-from src import tools
+from src import tools, database
 from src.csv_handler import (
     load_csv, auto_detect_columns, validate_mapping,
     normalise, summary_stats, REQUIRED_FIELDS, FIELD_PATTERNS,
@@ -28,11 +28,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+database.init_and_migrate()
+
 # ─────────────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────
-TODAY    = datetime.now()
-RESULTS  = Path("briefings") / f"results_{TODAY.strftime('%Y-%m-%d')}.json"
+TODAY      = datetime.now()
 DATE_LONG  = TODAY.strftime("%A %d %B %Y")
 DATE_SHORT = TODAY.strftime("%Y-%m-%d")
 
@@ -225,26 +226,10 @@ hr { border-color: #D6E8E4 !important; margin: 16px 0 !important; }
 # DATA
 # ─────────────────────────────────────────────────────────────────────
 def load_results():
-    # If today's results file is older than customers.json, it was written
-    # against a different customer set — discard it so the fallback kicks in.
-    customers_path = Path("data/customers.json")
-    if RESULTS.exists() and customers_path.exists():
-        if RESULTS.stat().st_mtime < customers_path.stat().st_mtime:
-            try:
-                RESULTS.unlink()
-            except Exception:
-                pass
-
-    target = RESULTS if RESULTS.exists() else None
-    if not target:
-        candidates = sorted(Path("briefings").glob("results_*.json"))
-        if candidates:
-            target = candidates[-1]
-    if not target:
+    results, run_time = database.get_latest_results()
+    if not results:
         return None, "—"
-    mtime = datetime.fromtimestamp(target.stat().st_mtime).strftime("%H:%M")
-    with open(target) as f:
-        return json.load(f), mtime
+    return results, run_time
 
 @st.cache_data
 def get_name(cid):
@@ -1133,19 +1118,15 @@ elif "Upload" in page:
                 c3.metric("Total outstanding", f"€{stats['total_outstanding']:,.2f}")
                 c4.metric("Overdue", f"€{stats['total_overdue']:,.2f}")
 
-                os.makedirs("data", exist_ok=True)
-                with open("data/customers.json", "w") as f:
-                    json.dump(customers, f, indent=2)
-                with open("data/invoices.json", "w") as f:
-                    json.dump(invoices, f, indent=2)
-                if not Path("data/communications.json").exists():
-                    with open("data/communications.json", "w") as f:
-                        json.dump([], f)
+                database.clear_dataset()
+                for c in customers:
+                    database.upsert_customer(c)
+                for inv in invoices:
+                    database.upsert_invoice(inv)
 
                 for stale in Path("briefings").glob("results_*.json"):
                     stale.unlink()
 
-                tools.reload_data()
                 st.cache_data.clear()
 
                 st.success(
@@ -1270,15 +1251,13 @@ elif "Run History" in page:
         st.markdown("<div style='font-size:1.4rem;font-weight:700;color:#0A2E28;margin-bottom:4px;'>Run History</div>", unsafe_allow_html=True)
         st.markdown("<div style='font-size:0.88rem;color:#5A7A74;margin-bottom:24px;'>All triage runs saved on this machine.</div>", unsafe_allow_html=True)
 
-        run_files = sorted(Path("briefings").glob("results_*.json"), reverse=True)
-        if not run_files:
+        run_dates = database.get_run_dates()
+        if not run_dates:
             st.info("No triage runs found.")
         else:
-            for f in run_files:
+            for run_date in run_dates:
                 try:
-                    with open(f) as fh:
-                        run_data = json.load(fh)
-                    date_str  = f.stem.replace("results_", "")
+                    run_data  = database.get_results_for_date(run_date)
                     r_count   = sum(1 for r in run_data if r["classification"] == "red")
                     a_count   = sum(1 for r in run_data if r["classification"] == "amber")
                     g_count   = sum(1 for r in run_data if r["classification"] == "green")
@@ -1290,7 +1269,7 @@ elif "Run History" in page:
                     <div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:10px;
                                 padding:16px 20px;margin-bottom:10px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div style="font-size:0.94rem;font-weight:600;color:#0A2E28;">{date_str}</div>
+                            <div style="font-size:0.94rem;font-weight:600;color:#0A2E28;">{run_date}</div>
                             <div style="font-size:0.84rem;color:#4A6B65;">€{total_exp:,.2f} at risk</div>
                         </div>
                         <div style="display:flex;gap:20px;margin-top:10px;">
