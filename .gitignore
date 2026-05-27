@@ -12,3 +12,6 @@ __pycache__/
 
 # IDE
 .vscode/
+
+# SQLite database (runtime data — seeded from JSON on startup)
+*.db
