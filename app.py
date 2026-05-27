@@ -1012,14 +1012,14 @@ elif "Customer" in page:
                 for inv in paid_invs:
                     is_part   = inv.get("status") == "partial"
                     amt_paid  = inv.get("amount_paid") or inv["amount"]
-                    tag       = '&nbsp;<span style="background:#FEF1E2;color:#8A4B00;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:3px;">PARTIAL</span>' if is_part else ''
+                    partial_badge = '&nbsp;<span style="background:#FEF1E2;color:#8A4B00;font-size:0.65rem;font-weight:600;padding:1px 6px;border-radius:3px;">PARTIAL</span>' if is_part else ''
                     st.markdown(
                         f'<div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:8px;'
                         f'padding:12px 18px;margin-bottom:6px;'
                         f'display:flex;justify-content:space-between;align-items:center;">'
                         f'<div>'
                         f'<div style="font-size:0.84rem;font-weight:600;color:#0A2E28;'
-                        f'font-family:\'DM Mono\',monospace;">{inv["invoice_id"]}{tag}</div>'
+                        f'font-family:\'DM Mono\',monospace;">{inv["invoice_id"]}{partial_badge}</div>'
                         f'<div style="font-size:0.73rem;color:#5A7A74;margin-top:3px;">'
                         f'Issued {inv["issue_date"]} · Paid {inv.get("paid_date", "—")}'
                         f'</div></div>'
