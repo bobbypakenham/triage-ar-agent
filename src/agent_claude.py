@@ -28,7 +28,7 @@ load_dotenv()  # Read .env so ANTHROPIC_API_KEY is available
 import streamlit as st
 api_key = st.secrets.get("ANTHROPIC_API_KEY") if hasattr(st, "secrets") else None
 api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-MODEL_NAME = "claude-sonnet-4-5"
+MODEL_NAME = "claude-sonnet-4-6"
 MAX_ITERATIONS = 8
 MAX_TOKENS_PER_RESPONSE = 2048  # Claude needs a max_tokens cap per call
 

@@ -15,10 +15,7 @@ from datetime import datetime
 
 from src import tools
 from src.agent_claude import analyze_customer
-
-
-def _today():
-    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+from src.tools import _today
 
 
 # ---------------------------------------------------------------------

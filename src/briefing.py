@@ -22,7 +22,6 @@ from pathlib import Path
 from src import tools
 
 
-TODAY = datetime(2026, 5, 17)
 BRIEFINGS_DIR = Path("briefings")
 
 
@@ -143,7 +142,8 @@ def generate_briefing(results, save=True):
     # Total value at risk = sum of all overdue across non-green customers
     total_at_risk = sum(_total_overdue_value(r["customer_id"]) for r in (red + amber))
 
-    date_str = TODAY.strftime("%d %B %Y")
+    today = datetime.now()
+    date_str = today.strftime("%d %B %Y")
     needs_attention = len(red) + len(amber)
 
     # Build the markdown
@@ -178,7 +178,7 @@ def generate_briefing(results, save=True):
 
     if save:
         BRIEFINGS_DIR.mkdir(exist_ok=True)
-        date_file = TODAY.strftime("%Y-%m-%d")
+        date_file = today.strftime("%Y-%m-%d")
         output_path = BRIEFINGS_DIR / f"briefing_{date_file}.md"
         with open(output_path, "w") as f:
             f.write(briefing_text)
@@ -193,7 +193,7 @@ def generate_from_saved_results(results_path=None):
     Lets us regenerate the briefing without re-running the agent.
     """
     if results_path is None:
-        date_file = TODAY.strftime("%Y-%m-%d")
+        date_file = datetime.now().strftime("%Y-%m-%d")
         results_path = BRIEFINGS_DIR / f"results_{date_file}.json"
 
     with open(results_path, "r") as f:

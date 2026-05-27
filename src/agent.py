@@ -1,17 +1,4 @@
 """
-agent.py — The agent loop.
-
-This is where everything connects:
-- The system prompt (from prompts.py)
-- The tools (from tools.py)
-- The model (Qwen 2.5 via Ollama)
-
-One main function: analyze_customer(customer_id). It runs the agent
-loop until the model produces a final answer (or hits the iteration limit),
-then returns the recommendation that was recorded.
-"""
-
-"""
 agent.py — Local Ollama version of the AR agent.
 
 This version runs on Qwen 2.5 7B locally via Ollama — free, private,

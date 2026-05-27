@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from statistics import mean, median, stdev
 
 
-# Pretend "today" for consistent demos — must match generate_data.py and tools.py
-TODAY = datetime(2026, 5, 17)
+def _today():
+    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def _parse_date(date_str):
@@ -173,7 +173,8 @@ def compute_payment_stats(paid_invoices, current_open_invoice=None):
     # Summary of recently paid invoices (last 60 days) — gives the agent context
     # about whether the customer has been actively paying or gone silent
     recent_paid_summary = []
-    sixty_days_ago = TODAY - timedelta(days=60)
+    today = _today()
+    sixty_days_ago = today - timedelta(days=60)
     for inv in paid_invoices:
         paid_date = _parse_date(inv["paid_date"])
         if paid_date >= sixty_days_ago:
@@ -211,7 +212,7 @@ def compute_payment_stats(paid_invoices, current_open_invoice=None):
     # We always report days_outstanding; we conditionally report the sigma.
     if current_open_invoice:
         issue_date = _parse_date(current_open_invoice["issue_date"])
-        days_outstanding = (TODAY - issue_date).days
+        days_outstanding = (_today() - issue_date).days
         stats["current_days_outstanding"] = days_outstanding
 
         enough_history = len(paid_invoices) >= 5
