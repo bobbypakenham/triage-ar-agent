@@ -591,11 +591,9 @@ if "Daily" in page:
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
 
         # ── RUN TRIAGE PROMPT ──
-        if data is None:
-            if not has_customers:
-                st.info("Upload your ledger first to get started.")
-                st.stop()
-            st.info("Ledger uploaded. Run triage to analyse your accounts.")
+        todays_run_exists = DATE_SHORT in database.get_run_dates()
+
+        def _run_triage_button():
             if st.button("Run Triage", type="primary"):
                 with st.spinner("Analysing accounts… this takes a few minutes."):
                     try:
@@ -612,7 +610,18 @@ if "Daily" in page:
                         st.stop()
                 st.cache_data.clear()
                 st.rerun()
+
+        if data is None:
+            if not has_customers:
+                st.info("Upload your ledger first to get started.")
+                st.stop()
+            st.info("Ledger uploaded. Run triage to analyse your accounts.")
+            _run_triage_button()
             st.stop()
+        elif not todays_run_exists:
+            st.info(f"Showing results from {RUN_TIME}. Run triage to refresh.")
+            _run_triage_button()
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
         # ── STAT CARDS ──
         c1, c2, c3, c4 = st.columns(4)
