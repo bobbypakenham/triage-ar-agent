@@ -8,6 +8,7 @@ Refresh data: python run.py (re-runs the batch), then reload browser
 
 import json
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -316,6 +317,50 @@ def behavior_tag(b):
     return tag(label, bg, color)
 
 
+# ── Humanise leaked snake_case ────────────────────────────────────────
+# The agent sometimes writes raw variable names (behavior_classification
+# values, field names, action names) into pattern_noticed / reasoning. This is
+# a UI safety net that turns them into natural language before display. The
+# prompt also instructs the agent to avoid them; this catches the stragglers.
+_LEAKY_TERMS = {
+    "insufficient_data":        "insufficient payment history",
+    "high_risk":                "high risk",
+    "moderately_late":          "moderately late",
+    "slightly_late":            "slightly late",
+    "slow_but_consistent":      "slow but consistent",
+    "deteriorating_reliable":   "previously reliable but slipping",
+    "behavior_classification":  "payment behaviour",
+    "current_deviation_sigmas": "deviation from their normal pattern",
+    "days_past_due":            "days past due",
+    "days_outstanding":         "days outstanding",
+    "avg_days_late":            "average days late",
+    "avg_days_to_pay":          "average days to pay",
+    "reliability_score":        "reliability",
+    "recommended_action":       "recommended action",
+    "pattern_noticed":          "pattern noticed",
+    "send_tier_1":              "a Tier 1 reminder",
+    "send_tier_2":              "a Tier 2 follow-up",
+    "send_tier_3":              "a Tier 3 final notice",
+    "escalate_to_human":        "escalation to a human",
+    "no_action":                "no action",
+}
+# Match known terms longest-first so multi-word keys win over any substring.
+_LEAKY_RE = re.compile("|".join(
+    re.escape(k) for k in sorted(_LEAKY_TERMS, key=len, reverse=True)
+))
+
+def humanize(text):
+    """Replace snake_case variable names leaked into written fields with
+    natural language. Known terms map to friendly phrases; any other purely
+    alphabetic snake_case token falls back to spaces."""
+    if not text:
+        return text
+    text = _LEAKY_RE.sub(lambda m: _LEAKY_TERMS[m.group(0)], text)
+    # Fallback for unmapped lower_snake_case words (letters only, e.g. some_field)
+    text = re.sub(r"\b[a-z]+(?:_[a-z]+)+\b", lambda m: m.group(0).replace("_", " "), text)
+    return text
+
+
 data, RUN_TIME, RUN_DATE = load_results()
 # Long-form date the briefing was actually generated (falls back to today when
 # no run exists yet). Used by the topbar so a stale briefing shows its real date.
@@ -602,7 +647,7 @@ def customer_card(r, idx=0):
 
         # Row 3: pattern noticed
         f'<div style="font-size:0.8rem;color:#3A5A54;line-height:1.55;">'
-        f'{r.get("pattern_noticed", "—")}</div>'
+        f'{humanize(r.get("pattern_noticed", "—"))}</div>'
 
         f'</div>'
     )
@@ -620,7 +665,7 @@ def customer_card(r, idx=0):
                 f'To: {contact_email} &nbsp;|&nbsp; Subject: {email["subject"]}'
                 f'</div>'
                 f'<div style="font-size:0.74rem;color:#5A7A74;margin-bottom:10px;'
-                f'font-style:italic;line-height:1.5;">{r["reasoning"]}</div>',
+                f'font-style:italic;line-height:1.5;">{humanize(r["reasoning"])}</div>',
                 unsafe_allow_html=True
             )
             edited = st.text_area(
@@ -657,7 +702,7 @@ def customer_card(r, idx=0):
             f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">'
             f'Recommended Next Action</div>'
             f'<div style="font-size:0.82rem;color:#3A1A14;line-height:1.55;">'
-            f'{r["reasoning"]}</div>'
+            f'{humanize(r["reasoning"])}</div>'
             f'</div>',
             unsafe_allow_html=True
         )
@@ -824,7 +869,7 @@ if "Daily" in page:
                     cls = r["classification"]
                     invs = get_invoices(cid)
                     dpd     = max((i["days_past_due"] for i in invs), default=0)
-                    _pat    = r.get('pattern_noticed', '—')
+                    _pat    = humanize(r.get('pattern_noticed', '—'))
                     _snip   = _pat[:90] + ('…' if len(_pat) > 90 else '')
                     _days   = f'+{dpd}d' if dpd > 0 else ''
                     _ac     = AMT_COL[cls]
@@ -854,7 +899,7 @@ if "Daily" in page:
             else:
                 rows = [{"Customer": get_name(r["customer_id"]),
                          "ID": r["customer_id"],
-                         "Note": r.get('pattern_noticed', '—')} for r in green]
+                         "Note": humanize(r.get('pattern_noticed', '—'))} for r in green]
                 st.dataframe(rows, use_container_width=True, hide_index=True,
                     column_config={
                         "Customer": st.column_config.TextColumn(width="medium"),
@@ -895,7 +940,7 @@ if "Daily" in page:
         with t_green:
             rows = [{"Customer": get_name(r["customer_id"]),
                      "ID": r["customer_id"],
-                     "Note": r.get('pattern_noticed', '—'),
+                     "Note": humanize(r.get('pattern_noticed', '—')),
                      "Source": "Agent" if not r.get("_source") else "Pre-filter"
                      } for r in green]
             st.dataframe(rows, use_container_width=True, hide_index=True,
@@ -1257,12 +1302,12 @@ elif "Customer" in page:
                                 margin-bottom:8px;">Pattern Noticed</div>
                     <div style="font-size:0.85rem;color:#1A3A34;background:#F0F7F5;
                                 border-radius:6px;padding:10px 14px;margin-bottom:16px;
-                                line-height:1.55;">{rec.get('pattern_noticed', '—')}</div>
+                                line-height:1.55;">{humanize(rec.get('pattern_noticed', '—'))}</div>
                     <div style="font-size:0.72rem;font-weight:600;color:#6B9E94;
                                 text-transform:uppercase;letter-spacing:0.06em;
                                 margin-bottom:8px;">Reasoning</div>
                     <div style="font-size:0.82rem;color:#3A5A54;line-height:1.6;
-                                margin-bottom:16px;">{rec['reasoning']}</div>
+                                margin-bottom:16px;">{humanize(rec['reasoning'])}</div>
                     <div style="display:flex;gap:8px;">
                         {action_tag(rec['recommended_action'])}
                         {cls_tag(rec['classification'])}
@@ -1303,7 +1348,7 @@ elif "Customer" in page:
                         f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">'
                         f'Recommended Next Action</div>'
                         f'<div style="font-size:0.82rem;color:#3A1A14;line-height:1.55;">'
-                        f'{rec["reasoning"]}</div>'
+                        f'{humanize(rec["reasoning"])}</div>'
                         f'</div>',
                         unsafe_allow_html=True
                     )

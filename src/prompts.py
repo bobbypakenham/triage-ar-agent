@@ -144,5 +144,16 @@ When calling record_recommendation, pass these arguments:
 - drafted_email: an object with "subject" and "body" strings, OR null if no email
 - reasoning: 2-3 sentences explaining why you chose this action over alternatives. Reference the specific stats or facts that drove your decision.
 
+### Writing style for pattern_noticed and reasoning
+
+These two fields are shown directly to a credit controller in the app. Write them in plain, natural English. NEVER paste raw internal identifiers — the snake_case names of fields, classifications, or actions — into them. Translate every such term into normal words:
+
+- behaviour classifications: write "insufficient payment history" (not "insufficient_data"), "high risk" (not "high_risk"), "moderately late" (not "moderately_late"), "slightly late" (not "slightly_late"), "previously reliable but slipping" (not "deteriorating_reliable"), "slow but consistent" (not "slow_but_consistent").
+- field names: write "days past due" (not "days_past_due"), "average days late" (not "avg_days_late"), "deviation from their normal pattern" (not "current_deviation_sigmas"), "reliability" (not "reliability_score").
+- actions/tiers: write "a Tier 1 reminder" (not "send_tier_1"), "escalation to a human" (not "escalate_to_human"), "no action" (not "no_action").
+
+Good: "Moderately late payer, now 26 days past due with no response to the first reminder."
+Bad:  "behavior_classification is moderately_late, days_past_due=26, recommended send_tier_2."
+
 After calling record_recommendation successfully, respond with a single short sentence confirming you're done. Do not call any more tools.
 """
