@@ -367,7 +367,7 @@ with st.sidebar:
     page = st.radio(
         "nav",
         ["Daily Briefing", "Action Queue", "Customers", "Upload Ledger",
-         "AR Analytics", "Run History"],
+         "AR Analytics", "Run History", "Data & Privacy"],
         label_visibility="collapsed",
         key="nav",
     )
@@ -433,25 +433,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Sign out (only shown when auth is configured) ──
-    auth.logout_button(st)
-
-    # ── Data & privacy (always visible, survives st.stop on edge-state pages) ──
-    with st.expander("Data & privacy"):
-        st.markdown(
-            "<div style='font-size:0.72rem;color:rgba(255,255,255,0.82);line-height:1.65;'>"
-            "<b>Where your data lives.</b> Your ledger — customers, invoices and "
-            "communications — is stored in a local SQLite database on this deployment. "
-            "It is not shared with any third party other than as described below.<br><br>"
-            "<b>AI analysis.</b> To triage accounts, invoice and payment details are sent "
-            "to Anthropic's API. Anthropic does not use data submitted through its API to "
-            "train its models.<br><br>"
-            "<b>Deletion.</b> Your data can be removed at any time — uploading a new ledger "
-            "replaces the previous one, and a full wipe is available on request."
-            "</div>",
-            unsafe_allow_html=True,
-        )
-
     # ── Radio CSS fix ──
     st.markdown("""
     <style>
@@ -462,8 +443,12 @@ with st.sidebar:
     </style>
     """, unsafe_allow_html=True)
 
+    # ── Sign out — kept at the very bottom of the sidebar ──
+    # (only renders when auth is configured)
+    auth.logout_button(st)
+
 has_customers = len(tools.get_all_customers()) > 0
-if data is None and "Upload" not in page and "Daily" not in page:
+if data is None and "Upload" not in page and "Daily" not in page and "Privacy" not in page:
     if not has_customers:
         st.warning("No data yet. Upload your ledger to get started.")
         page = "Upload Ledger"
@@ -1590,3 +1575,64 @@ elif "Run History" in page:
                     </div>""", unsafe_allow_html=True)
                 except Exception:
                     pass
+
+
+# ─────────────────────────────────────────────────────────────────────
+# DATA & PRIVACY PAGE
+# ─────────────────────────────────────────────────────────────────────
+elif "Privacy" in page:
+    topbar()
+    _, main, _ = st.columns([0.03, 0.94, 0.03])
+    with main:
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:1.4rem;font-weight:700;color:#0A2E28;margin-bottom:4px;'>Data &amp; Privacy</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.88rem;color:#5A7A74;margin-bottom:24px;max-width:720px;'>How Triage handles your accounts-receivable data — what we collect, where it lives, how it's analysed, and how to have it removed.</div>", unsafe_allow_html=True)
+
+        _sections = [
+            ("What data is collected",
+             "Triage only works with the aged-debtors ledger you provide. That means:"
+             "<ul style='margin:8px 0 0 18px;padding:0;'>"
+             "<li><b>Customers</b> — company or contact name, email, payment terms, credit limit, account age.</li>"
+             "<li><b>Invoices</b> — invoice numbers, amounts, issue/due/paid dates and status (open, overdue, partial, paid).</li>"
+             "<li><b>Communications</b> — reminder emails Triage drafts, and any calls or replies you log manually.</li>"
+             "</ul>"
+             "<div style='margin-top:8px;'>Triage does not use tracking cookies or collect analytics about how you use the app.</div>"),
+            ("Where it's stored",
+             "All of the above is held in a single local SQLite database file on this deployment "
+             "(<code>data/triage.db</code>). It is not copied to an external database and is not "
+             "shared with any third party, with the single exception of the AI analysis described below."),
+            ("How it's used by the Anthropic API",
+             "To triage your accounts, Triage sends each customer's relevant invoice, payment-history "
+             "and communications details to Anthropic's Claude API. The API returns the risk "
+             "classification (red / amber / green), the recommended action, and any drafted chasing "
+             "email. Access is controlled by the <code>ANTHROPIC_API_KEY</code> configured for this "
+             "deployment. No data is sent anywhere else for analysis."),
+            ("No training on your data",
+             "Anthropic does not use data submitted through its API to train its models. Your "
+             "customers' financial details are used only to produce the analysis returned to you, "
+             "not to improve any model."),
+            ("How to request deletion",
+             "Your data can be removed at any time:"
+             "<ul style='margin:8px 0 0 18px;padding:0;'>"
+             "<li>Uploading a new ledger on the <b>Upload Ledger</b> page replaces the entire previous dataset.</li>"
+             "<li>A full wipe of all customers, invoices, communications and run history is available on "
+             "request — contact your Triage administrator, who can clear this deployment's database.</li>"
+             "</ul>"),
+        ]
+        for _title, _body in _sections:
+            st.markdown(
+                f"<div style='background:#fff;border:0.5px solid #D6E8E4;"
+                f"border-left:4px solid #1D9E75;border-radius:10px;"
+                f"padding:18px 22px;margin-bottom:12px;max-width:760px;'>"
+                f"<div style='font-size:0.95rem;font-weight:700;color:#0A2E28;"
+                f"margin-bottom:8px;'>{_title}</div>"
+                f"<div style='font-size:0.85rem;color:#3A5A54;line-height:1.65;'>{_body}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(
+            "<div style='font-size:0.74rem;color:#8AADA8;margin-top:8px;max-width:760px;'>"
+            "Questions about your data? Contact your Triage administrator.</div>",
+            unsafe_allow_html=True,
+        )
