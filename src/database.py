@@ -438,13 +438,14 @@ def _rows_to_results(rows) -> list:
 
 
 def get_latest_results() -> tuple:
-    """Return (results_list, run_time_str) for the most recent batch run."""
+    """Return (results_list, run_time_str, run_date_str) for the most recent
+    batch run. run_date is the date the results were generated (not today)."""
     with get_conn() as conn:
         row = conn.execute(
             "SELECT MAX(run_date) AS run_date FROM batch_results"
         ).fetchone()
         if not row or not row["run_date"]:
-            return [], "—"
+            return [], "—", None
 
         run_date = row["run_date"]
         rows = conn.execute(
@@ -453,7 +454,7 @@ def get_latest_results() -> tuple:
 
         results = _rows_to_results(rows)
         run_time = rows[0]["run_time"] if rows and rows[0]["run_time"] else run_date
-        return results, run_time
+        return results, run_time, run_date
 
 
 def get_results_for_date(run_date: str) -> list:

@@ -232,10 +232,10 @@ hr { border-color: #D6E8E4 !important; margin: 16px 0 !important; }
 # DATA
 # ─────────────────────────────────────────────────────────────────────
 def load_results():
-    results, run_time = database.get_latest_results()
+    results, run_time, run_date = database.get_latest_results()
     if not results:
-        return None, "—"
-    return results, run_time
+        return None, "—", None
+    return results, run_time, run_date
 
 @st.cache_data
 def get_name(cid):
@@ -316,7 +316,14 @@ def behavior_tag(b):
     return tag(label, bg, color)
 
 
-data, RUN_TIME = load_results()
+data, RUN_TIME, RUN_DATE = load_results()
+# Long-form date the briefing was actually generated (falls back to today when
+# no run exists yet). Used by the topbar so a stale briefing shows its real date.
+try:
+    RUN_DATE_LONG = datetime.strptime(RUN_DATE, "%Y-%m-%d").strftime("%A %d %B %Y") if RUN_DATE else None
+except (ValueError, TypeError):
+    RUN_DATE_LONG = None
+
 red   = [r for r in data if r["classification"] == "red"]   if data else []
 amber = [r for r in data if r["classification"] == "amber"] if data else []
 green = [r for r in data if r["classification"] == "green"] if data else []
@@ -469,12 +476,22 @@ total_risk = sum(get_overdue(r["customer_id"]) for r in red + amber)
 def topbar():
     col1, col2 = st.columns([0.85, 0.15])
     with col1:
-        run_status = f"Run completed {RUN_TIME}" if RUN_TIME and RUN_TIME != "—" else "No triage run yet"
+        # Show the date the briefing was actually generated, not today's date —
+        # results may be from a previous run. Flag it when it isn't today's.
+        if RUN_TIME and RUN_TIME != "—":
+            date_label = RUN_DATE_LONG or DATE_LONG
+            run_status = f"Run completed {RUN_TIME}"
+            stale = (" &nbsp;·&nbsp; <span style='color:#B07060;font-weight:600;'>last run, not today</span>"
+                     if RUN_DATE and RUN_DATE != DATE_SHORT else "")
+        else:
+            date_label = DATE_LONG
+            run_status = "No triage run yet"
+            stale = ""
         st.markdown(f"""
         <div style="background:#fff;border-bottom:1px solid #D6E8E4;
                     padding:14px 32px;display:flex;align-items:center;">
             <div style="font-size:0.8rem;color:#6B9E94;font-family:'DM Sans',sans-serif;">
-                {DATE_LONG} &nbsp;·&nbsp; {run_status}
+                {date_label} &nbsp;·&nbsp; {run_status}{stale}
             </div>
         </div>
         """, unsafe_allow_html=True)
