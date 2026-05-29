@@ -8,11 +8,12 @@ Refresh data: python run.py (re-runs the batch), then reload browser
 
 import json
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
 import pandas as pd
-from src import tools, database
+from src import tools, database, runner, auth
 from src.csv_handler import (
     load_csv, auto_detect_columns, validate_mapping,
     normalise, summary_stats, REQUIRED_FIELDS, FIELD_PATTERNS,
@@ -29,6 +30,11 @@ st.set_page_config(
 )
 
 database.init_and_migrate()
+
+# Gate the whole app behind a password (configured in .streamlit/secrets.toml).
+# No-op when no credentials are configured, e.g. local dev. Must run before
+# any data loads or rendering below.
+auth.require_login()
 
 # ─────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -346,6 +352,11 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # A CTA elsewhere may have requested a page switch; apply it before the
+    # radio is instantiated (Streamlit forbids setting a widget's state after).
+    if st.session_state.pop("_go_upload", False):
+        st.session_state["nav"] = "Upload Ledger"
+
     page = st.radio(
         "nav",
         ["Daily Briefing", "Action Queue", "Customers", "Upload Ledger",
@@ -415,6 +426,9 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Sign out (only shown when auth is configured) ──
+    auth.logout_button(st)
+
     # ── Radio CSS fix ──
     st.markdown("""
     <style>
@@ -439,11 +453,12 @@ total_risk = sum(get_overdue(r["customer_id"]) for r in red + amber)
 def topbar():
     col1, col2 = st.columns([0.85, 0.15])
     with col1:
+        run_status = f"Run completed {RUN_TIME}" if RUN_TIME and RUN_TIME != "—" else "No triage run yet"
         st.markdown(f"""
         <div style="background:#fff;border-bottom:1px solid #D6E8E4;
                     padding:14px 32px;display:flex;align-items:center;">
             <div style="font-size:0.8rem;color:#6B9E94;font-family:'DM Sans',sans-serif;">
-                {DATE_LONG} &nbsp;·&nbsp; Run completed {RUN_TIME}
+                {DATE_LONG} &nbsp;·&nbsp; {run_status}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -458,6 +473,51 @@ def topbar():
                 file_name=f"triage_briefing_{DATE_SHORT}.md",
                 mime="text/markdown",
             )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# FIRST-RUN WELCOME
+# ─────────────────────────────────────────────────────────────────────
+def _welcome_screen():
+    """Shown on the Daily Briefing when no ledger has been uploaded yet.
+    Explains what Triage does and points the user at the first step.
+
+    Called from inside the page's main column, so it does its own centering via
+    CSS (max-width) and uses only a single level of nested columns for the
+    button — Streamlit allows columns nested one level deep, no more."""
+    st.markdown(
+        '<div style="background:#fff;border:0.5px solid #D6E8E4;border-radius:12px;'
+        'padding:36px 40px;margin-top:24px;text-align:center;max-width:620px;'
+        'margin-left:auto;margin-right:auto;">'
+        '<div style="display:inline-flex;width:48px;height:48px;background:#1D9E75;'
+        'border-radius:12px;align-items:center;justify-content:center;font-size:22px;'
+        'font-weight:700;color:#fff;margin-bottom:16px;">T</div>'
+        '<div style="font-size:1.5rem;font-weight:600;color:#0A2E28;margin-bottom:8px;">'
+        'Welcome to Triage</div>'
+        '<div style="font-size:0.92rem;color:#3A5A54;line-height:1.65;max-width:560px;'
+        'margin:0 auto 8px;">'
+        'Triage reviews your accounts receivable every morning, flags every customer '
+        'as <span style="color:#993C1D;font-weight:600;">urgent</span>, '
+        '<span style="color:#854F0B;font-weight:600;">needs a reminder</span>, or '
+        '<span style="color:#3B6D11;font-weight:600;">clear</span>, and drafts the '
+        'chasing emails for you to approve — replacing hours of manual review.'
+        '</div>'
+        '<div style="font-size:0.86rem;color:#6B9E94;line-height:1.6;max-width:560px;'
+        'margin:14px auto 0;">'
+        '<b>To get started:</b> upload your aged debtors report (a CSV export from your '
+        'accounting system), then run triage to generate your first briefing.'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+    b_l, b_c, b_r = st.columns([1, 1.2, 1])
+    with b_c:
+        if st.button("Upload your ledger →", type="primary", use_container_width=True):
+            # Can't set the nav radio's state after it's instantiated this run,
+            # so flag it and let the pre-radio block switch on rerun.
+            st.session_state["_go_upload"] = True
+            st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -571,11 +631,16 @@ def customer_card(r, idx=0):
             if st.session_state.get(f"done_{cid}_{idx}"):
                 st.code(st.session_state[f"done_{cid}_{idx}"], language=None)
 
-    elif cls in ("red", "amber"):
+    elif cls in ("red", "amber") and not r.get("drafted_email"):
         st.markdown(
-            '<div style="background:#FAECE7;border-radius:6px;padding:9px 12px;'
-            'font-size:0.78rem;color:#993C1D;margin-bottom:10px;">'
-            'Escalated for human review — no automated email drafted.</div>',
+            f'<div style="background:#FAECE7;border-radius:6px;padding:12px 16px;'
+            f'border-left:3px solid #D85A30;margin-bottom:10px;">'
+            f'<div style="font-size:0.68rem;font-weight:700;color:#993C1D;'
+            f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">'
+            f'Recommended Next Action</div>'
+            f'<div style="font-size:0.82rem;color:#3A1A14;line-height:1.55;">'
+            f'{r["reasoning"]}</div>'
+            f'</div>',
             unsafe_allow_html=True
         )
 
@@ -593,34 +658,60 @@ if "Daily" in page:
         # ── RUN TRIAGE PROMPT ──
         todays_run_exists = DATE_SHORT in database.get_run_dates()
 
-        def _run_triage_button():
-            if st.button("Run Triage", type="primary"):
-                with st.spinner("Analysing accounts… this takes a few minutes."):
-                    try:
-                        from src.orchestrator import run_batch   # lazy — do NOT move to top
-                        run_batch(verbose=False)
-                    except Exception as e:
-                        err = str(e)
-                        if "rate_limit" in err.lower() or "ratelimit" in err.lower() or "429" in err:
-                            st.error("Anthropic API rate limit reached. Wait a minute and try again, or check your API plan at console.anthropic.com.")
-                        elif "api_key" in err.lower() or "authentication" in err.lower() or "401" in err:
-                            st.error("Anthropic API key missing or invalid. Add ANTHROPIC_API_KEY to your Streamlit secrets.")
-                        else:
-                            st.error(f"Triage run failed: {err}")
-                        st.stop()
-                st.cache_data.clear()
+        def _start_triage_button(label="Run Triage"):
+            """Render the button that kicks off a background batch run."""
+            if st.button(label, type="primary"):
+                runner.start_run()  # no-op if one is already running
+                st.session_state["_triage_active"] = True
                 st.rerun()
+
+        # 1. A batch is in flight — take over the page with a live progress bar
+        #    and poll. Each rerun is sub-second, so Streamlit Cloud never times
+        #    out while the worker thread does the multi-minute analysis.
+        run_state = runner.get_state()
+        if run_state["running"]:
+            total = run_state["total"] or 1
+            done = run_state["done"]
+            st.markdown(
+                '<div style="font-size:1.05rem;font-weight:600;color:#0A2E28;'
+                'margin-bottom:10px;">Running triage…</div>',
+                unsafe_allow_html=True,
+            )
+            st.progress(
+                min(done / total, 1.0),
+                text=f"Analysing {run_state['current'] or '…'} — {done} of {total} accounts",
+            )
+            st.caption("This runs in the background. You can leave this page and come back — it won't stop.")
+            time.sleep(2)
+            st.rerun()
+
+        # 2. A run we started has just finished — finalise: surface any error,
+        #    otherwise refresh cached data so the new briefing shows.
+        if st.session_state.get("_triage_active"):
+            st.session_state["_triage_active"] = False
+            err = run_state.get("error")
+            if err:
+                low = err.lower()
+                if "rate_limit" in low or "ratelimit" in low or "429" in err:
+                    st.error("Anthropic API rate limit reached. Wait a minute and try again, or check your API plan at console.anthropic.com.")
+                elif "api_key" in low or "authentication" in low or "401" in err:
+                    st.error("Anthropic API key missing or invalid. Add ANTHROPIC_API_KEY to your Streamlit secrets.")
+                else:
+                    st.error(f"Triage run failed: {err}")
+                st.stop()
+            st.cache_data.clear()
+            st.rerun()
 
         if data is None:
             if not has_customers:
-                st.info("Upload your ledger first to get started.")
+                _welcome_screen()
                 st.stop()
             st.info("Ledger uploaded. Run triage to analyse your accounts.")
-            _run_triage_button()
+            _start_triage_button()
             st.stop()
         elif not todays_run_exists:
-            st.info(f"Showing results from {RUN_TIME}. Run triage to refresh.")
-            _run_triage_button()
+            st.info(f"Last run: {RUN_TIME}. Run triage to refresh today's briefing.")
+            _start_triage_button("Run Triage")
             st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
         # ── STAT CARDS ──
@@ -1108,6 +1199,18 @@ elif "Customer" in page:
                         st.success("Ready to send")
                     if st.session_state.get(f"hdone_{cid}"):
                         st.code(st.session_state[f"hdone_{cid}"], language=None)
+                elif rec.get("classification") in ("red", "amber"):
+                    st.markdown(
+                        f'<div style="background:#FAECE7;border-radius:6px;padding:12px 16px;'
+                        f'border-left:3px solid #D85A30;margin-bottom:10px;">'
+                        f'<div style="font-size:0.68rem;font-weight:700;color:#993C1D;'
+                        f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">'
+                        f'Recommended Next Action</div>'
+                        f'<div style="font-size:0.82rem;color:#3A1A14;line-height:1.55;">'
+                        f'{rec["reasoning"]}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
 # ─────────────────────────────────────────────────────────────────────
 # UPLOAD LEDGER PAGE
 # ─────────────────────────────────────────────────────────────────────

@@ -27,8 +27,19 @@ from src import tools
 
 load_dotenv()  # Read .env so ANTHROPIC_API_KEY is available
 import streamlit as st
-api_key = st.secrets.get("ANTHROPIC_API_KEY") if hasattr(st, "secrets") else None
-api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+
+
+def _get_secret(key):
+    # st.secrets raises StreamlitSecretNotFoundError (not returns None) when no
+    # secrets.toml exists, which would crash this module at import time on a
+    # box without one. Swallow that and fall back to the environment.
+    try:
+        return st.secrets.get(key)
+    except Exception:
+        return None
+
+
+api_key = _get_secret("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
 MODEL_NAME = "claude-sonnet-4-6"
 MAX_ITERATIONS = 8
 MAX_TOKENS_PER_RESPONSE = 2048  # Claude needs a max_tokens cap per call

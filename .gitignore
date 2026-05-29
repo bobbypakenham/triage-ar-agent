@@ -7,6 +7,9 @@ __pycache__/
 # Environment variables
 .env
 
+# Streamlit secrets (real credentials — keep the .example committed, not this)
+.streamlit/secrets.toml
+
 # OS files
 .DS_Store
 

@@ -13,7 +13,7 @@ not triage of the obvious ones.
 
 from datetime import datetime
 
-from src import tools
+from src import tools, database
 from src.agent_claude import analyze_customer
 from src.tools import _today
 
@@ -100,7 +100,7 @@ def _enforce_classification(recommendation):
 # The batch runner
 # ---------------------------------------------------------------------
 
-def run_batch(verbose=True, limit=None):
+def run_batch(verbose=True, limit=None, progress_callback=None):
     """
     Run the full batch.
 
@@ -108,6 +108,11 @@ def run_batch(verbose=True, limit=None):
         verbose: print progress as it goes
         limit: if set, only process the first N customers (useful for testing
                without spending a full batch's worth of API calls)
+        progress_callback: optional callable(done, total, label). Called once
+               before work starts and again after each customer completes, so a
+               long-running batch can report live progress to a caller polling
+               from another thread (e.g. the Streamlit UI on Streamlit Cloud,
+               where a single request would otherwise time out).
 
     Returns:
         A list of recommendation dicts, one per customer.
@@ -118,50 +123,70 @@ def run_batch(verbose=True, limit=None):
     if limit:
         customers = customers[:limit]
 
+    total = len(customers)
+    run_date = _today().strftime("%Y-%m-%d")
+    # Provisional time used for the rows we save mid-run (so progressive display
+    # works). Overwritten with the real completion time once the batch finishes
+    # — the topbar shows "Run completed HH:MM", which must mean completed.
+    run_time = datetime.now().strftime("%H:%M")
+
+    if progress_callback:
+        progress_callback(0, total, "Starting…")
+
     results = []
     analyzed_count = 0
     skipped_count = 0
 
     for i, customer in enumerate(customers, start=1):
         cid = customer["customer_id"]
+        label = customer.get("company_name") or cid
 
         if _worth_analyzing(cid):
             if verbose:
-                print(f"\n[{i}/{len(customers)}] Analyzing {cid}...")
+                print(f"\n[{i}/{total}] Analyzing {cid}...")
             recommendation = analyze_customer(cid, verbose=verbose)
             recommendation = _enforce_classification(recommendation)
-            results.append(recommendation)
             analyzed_count += 1
         else:
             if verbose:
-                print(f"[{i}/{len(customers)}] Skipping {cid} (auto-green)")
-            results.append(_auto_green(cid))
+                print(f"[{i}/{total}] Skipping {cid} (auto-green)")
+            recommendation = _auto_green(cid)
             skipped_count += 1
+
+        results.append(recommendation)
+
+        # Persist each result the moment it's ready. This makes results appear
+        # progressively (the UI can poll the DB) instead of all-or-nothing at
+        # the end, and means a crashed/timed-out run still keeps completed work.
+        database.save_batch_result({**recommendation, "run_date": run_date, "run_time": run_time})
+
+        if progress_callback:
+            progress_callback(i, total, label)
 
     if verbose:
         print(f"\n{'='*60}")
         print(f"Batch complete: {analyzed_count} analyzed by agent, {skipped_count} auto-green")
         print(f"{'='*60}")
 
-    # Save results to disk so the briefing can be regenerated without
+    # Re-stamp every row with the actual completion time so the topbar's
+    # "Run completed HH:MM" reflects when the batch truly finished, not when it
+    # started (a full batch runs for several minutes).
+    completed_time = datetime.now().strftime("%H:%M")
+    for r in results:
+        database.save_batch_result({**r, "run_date": run_date, "run_time": completed_time})
+
+    # Write the JSON snapshot so the briefing can be regenerated without
     # re-running the agent (which costs money and time).
-    _save_results(results)
+    _save_results_json(results, run_date)
 
     return results
 
 
-def _save_results(results):
-    """Save batch results to SQLite and a JSON file in briefings/."""
+def _save_results_json(results, run_date):
+    """Write the batch results to a JSON file in briefings/ (DB save happens
+    incrementally during the run)."""
     import json
     from pathlib import Path
-    from src import database
-
-    run_date = _today().strftime("%Y-%m-%d")
-    run_time = datetime.now().strftime("%H:%M")
-
-    for r in results:
-        r_with_meta = {**r, "run_date": run_date, "run_time": run_time}
-        database.save_batch_result(r_with_meta)
 
     briefings_dir = Path("briefings")
     briefings_dir.mkdir(exist_ok=True)
