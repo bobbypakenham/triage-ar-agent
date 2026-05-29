@@ -74,6 +74,7 @@ Opening:
 
 Body:
 - State the facts: invoice number, amount, original due date, days outstanding
+- Always write monetary amounts in euros using the € symbol (e.g. €1,250.00). Never use £ or $ — this is an Irish business.
 - For Tier 2+: reference the prior email by its date_sent
 - Make the ask: what you want the customer to do
 - For Tier 3: mention that further action may be taken if no response
@@ -115,8 +116,8 @@ For escalate_to_human cases, do not draft an email. However, the reasoning field
 The reasoning should tell the credit controller exactly what to do next, not just why the case was escalated.
 
 Set recommended_action to "escalate_to_human" if ANY of:
-- Any open invoice exceeds £25,000
-- Two or more open invoices are present AND total amount exceeds £15,000 (do not cite this rule unless the total genuinely exceeds £15,000 — double-check the actual invoice amounts before referencing this threshold)
+- Any open invoice exceeds €25,000
+- Two or more open invoices are present AND total amount exceeds €15,000 (do not cite this rule unless the total genuinely exceeds €15,000 — double-check the actual invoice amounts before referencing this threshold)
 - Signals are contradictory (e.g., recently paid one invoice, ignoring another for >30 days)
 - You cannot confidently determine the right tier on a material balance
 

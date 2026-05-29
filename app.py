@@ -899,11 +899,19 @@ elif "Action" in page:
     with main:
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
 
-        # Filter
+        # Filter — labels carry live counts so the user sees the queue size
+        # for each option without selecting it.
+        n_red, n_amber = len(red), len(amber)
+        filter_opts = {
+            f"All ({n_red + n_amber})":        "All",
+            f"Urgent only ({n_red})":          "Urgent only",
+            f"Reminders only ({n_amber})":     "Reminders only",
+        }
         f_col, _, __ = st.columns([2, 3, 3])
         with f_col:
-            flt = st.selectbox("filter", ["All", "Urgent only", "Reminders only"],
-                               label_visibility="collapsed")
+            flt_label = st.selectbox("filter", list(filter_opts.keys()),
+                                     label_visibility="collapsed")
+        flt = filter_opts[flt_label]
 
         st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
@@ -946,14 +954,27 @@ elif "Customer" in page:
     with main:
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
 
-        # Search
+        # Search — a free-text box filters the list as you type, so you don't
+        # have to scroll the full customer base to find one account.
         all_c = tools.get_all_customers()
         options = {f"{get_name(c['customer_id'])} ({c['customer_id']})": c["customer_id"]
                    for c in all_c}
-        sel_label = st.selectbox("search", list(options.keys()),
-                                 label_visibility="collapsed",
-                                 placeholder="Search by name or ID…")
-        cid = options[sel_label]
+
+        query = st.text_input("customer_search", label_visibility="collapsed",
+                              placeholder="Search by name or ID…")
+        if query:
+            q = query.lower()
+            filtered = {label: cid for label, cid in options.items() if q in label.lower()}
+        else:
+            filtered = options
+
+        if not filtered:
+            st.info(f"No customers match “{query}”.")
+            st.stop()
+
+        sel_label = st.selectbox("customer_select", list(filtered.keys()),
+                                 label_visibility="collapsed")
+        cid = filtered[sel_label]
 
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -1150,7 +1171,34 @@ elif "Customer" in page:
 
         with ht4:
             if not rec:
-                st.info("Auto-classified — no agent recommendation generated.")
+                st.info("Auto-classified — no agent recommendation was generated for this customer (nothing overdue or due soon).")
+                # Even without an agent run, surface what we know about their
+                # payment behaviour so the tab isn't a dead end.
+                _beh_raw = stats.get("behavior_classification")
+                _paid_n  = stats.get("total_invoices_paid")
+                if _beh_raw and _beh_raw != "insufficient_data" and _paid_n:
+                    _bdtp = stats.get("avg_days_to_pay")
+                    _bdl  = stats.get("avg_days_late")
+                    _brel = stats.get("reliability_score")
+                    _btrd = (stats.get("trend") or "—")
+                    st.markdown(
+                        f'<div style="background:#fff;border:0.5px solid #D6E8E4;'
+                        f'border-left:4px solid {BORDERS["green"]};border-radius:10px;'
+                        f'padding:18px 22px;margin-top:12px;">'
+                        f'<div style="font-size:0.72rem;font-weight:600;color:#6B9E94;'
+                        f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">'
+                        f'Payment Behaviour</div>'
+                        f'<div style="margin-bottom:12px;">{behavior_tag(_beh_raw)}</div>'
+                        f'<div style="font-size:0.83rem;color:#3A5A54;line-height:1.7;">'
+                        f'{_paid_n} invoice{"s" if _paid_n != 1 else ""} paid on record · '
+                        f'pays on average {_bdtp:.1f} days after invoice'
+                        f'{f" ({_bdl:+.1f} days vs due date)" if _bdl is not None else ""} · '
+                        f'{_brel:.0%} paid on time · trend {_btrd}.'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.caption("Not enough payment history yet to summarise this customer's behaviour.")
             else:
                 st.markdown(f"""
                 <div style="background:#fff;border:0.5px solid #D6E8E4;

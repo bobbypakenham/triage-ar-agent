@@ -127,10 +127,16 @@ def get_communications_log(customer_id):
 
 
 def record_recommendation(customer_id, classification, pattern_noticed,
-                          recommended_action, drafted_email, reasoning):
+                          recommended_action, reasoning, drafted_email=None):
     """
     Save the agent's final recommendation for this customer.
     Called once per customer at the end of analysis.
+
+    drafted_email defaults to None: the tool schema marks it optional, so the
+    agent legitimately omits it for no-email actions (no_action, escalate). It
+    must be optional here too, or the call raises TypeError, nothing is
+    recorded, and the loop falls through to a spurious "agent did not record a
+    recommendation" escalation.
     """
     recommendation = {
         "customer_id":        customer_id,

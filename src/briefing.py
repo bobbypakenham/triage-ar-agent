@@ -62,7 +62,7 @@ def _format_red_section(red_recs):
         overdue = _total_overdue_value(cid)
 
         lines.append(f"### {name} ({cid}) — {action}")
-        lines.append(f"**Overdue value:** £{overdue:,.2f}")
+        lines.append(f"**Overdue value:** €{overdue:,.2f}")
         lines.append(f"**What we noticed:** {r['pattern_noticed']}")
         lines.append(f"**Reasoning:** {r['reasoning']}")
 
@@ -93,7 +93,7 @@ def _format_amber_section(amber_recs):
 
         lines.append(f"### {name} ({cid}) — {action}")
         if overdue > 0:
-            lines.append(f"**Overdue value:** £{overdue:,.2f}")
+            lines.append(f"**Overdue value:** €{overdue:,.2f}")
         lines.append(f"**What we noticed:** {r['pattern_noticed']}")
 
         if r.get("drafted_email"):
@@ -151,13 +151,13 @@ def generate_briefing(results, save=True):
     md.append(f"# AR Morning Briefing — {date_str}")
     md.append(f"_Generated {date_str}, reflecting ledger state as of {date_str}._\n")
     md.append(f"**{len(results)} customers reviewed. {needs_attention} need attention "
-              f"({len(red)} urgent, {len(amber)} reminders). £{total_at_risk:,.2f} total overdue.**\n")
+              f"({len(red)} urgent, {len(amber)} reminders). €{total_at_risk:,.2f} total overdue.**\n")
 
     md.append("## Summary")
     md.append(f"- 🔴 **{len(red)}** urgent (escalations / final notices)")
     md.append(f"- 🟡 **{len(amber)}** reminders ready to review and send")
     md.append(f"- 🟢 **{len(green)}** no action needed")
-    md.append(f"- **£{total_at_risk:,.2f}** total value at risk\n")
+    md.append(f"- **€{total_at_risk:,.2f}** total value at risk\n")
 
     md.append("---\n")
     md.append("## 🔴 Needs Your Attention")
