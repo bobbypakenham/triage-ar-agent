@@ -429,6 +429,22 @@ with st.sidebar:
     # ── Sign out (only shown when auth is configured) ──
     auth.logout_button(st)
 
+    # ── Data & privacy (always visible, survives st.stop on edge-state pages) ──
+    with st.expander("Data & privacy"):
+        st.markdown(
+            "<div style='font-size:0.72rem;color:rgba(255,255,255,0.82);line-height:1.65;'>"
+            "<b>Where your data lives.</b> Your ledger — customers, invoices and "
+            "communications — is stored in a local SQLite database on this deployment. "
+            "It is not shared with any third party other than as described below.<br><br>"
+            "<b>AI analysis.</b> To triage accounts, invoice and payment details are sent "
+            "to Anthropic's API. Anthropic does not use data submitted through its API to "
+            "train its models.<br><br>"
+            "<b>Deletion.</b> Your data can be removed at any time — uploading a new ledger "
+            "replaces the previous one, and a full wipe is available on request."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
     # ── Radio CSS fix ──
     st.markdown("""
     <style>
