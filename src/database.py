@@ -330,6 +330,23 @@ def add_communication(comm: dict):
         ))
 
 
+def log_manual_communication(customer_id: str, date_sent: str, note: str,
+                             customer_responded: bool, invoice_id=None):
+    """Record a communication logged by hand — a phone call made, or a reply
+    received outside the system. Stored with tier 0 to distinguish it from the
+    automated reminder tiers (1/2/3). Left unlinked to an invoice by default,
+    so it stays a free-form note and does not alter the agent's invoice-scoped
+    reminder logic."""
+    add_communication({
+        "customer_id":        customer_id,
+        "invoice_id":         invoice_id,
+        "tier":               0,
+        "date_sent":          date_sent,
+        "customer_responded": customer_responded,
+        "response_summary":   note,
+    })
+
+
 def get_communications(customer_id: str) -> list:
     with get_conn() as conn:
         rows = conn.execute("""

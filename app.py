@@ -981,7 +981,6 @@ elif "Customer" in page:
         profile  = get_profile(cid)
         stats    = get_stats(cid)
         invoices = get_invoices(cid)
-        comms    = get_comms(cid)
         rec      = next((r for r in data if r["customer_id"] == cid), None) if data else None
         cls      = rec["classification"] if rec else "green"
         name     = get_name(cid)
@@ -1144,12 +1143,43 @@ elif "Customer" in page:
                     )
 
         with ht3:
-            if not comms:
-                st.info("No prior communications on record.")
+            # ── Log a communication manually (phone call, reply received elsewhere) ──
+            with st.expander("➕ Log a communication"):
+                from datetime import date as _date
+                with st.form(f"logcomm_{cid}"):
+                    lc1, lc2 = st.columns([1, 1])
+                    comm_date = lc1.date_input("Date", value=_date.today(),
+                                               key=f"cdate_{cid}")
+                    responded = lc2.checkbox("Customer responded", key=f"cresp_{cid}")
+                    note = st.text_area(
+                        "Note",
+                        placeholder="e.g. Called Emma — she'll pay INV-2026-2414 by Friday.",
+                        key=f"cnote_{cid}",
+                    )
+                    if st.form_submit_button("Save communication", type="primary"):
+                        if not note.strip():
+                            st.warning("Add a note before saving.")
+                        else:
+                            database.log_manual_communication(
+                                cid, comm_date.isoformat(), note.strip(), responded
+                            )
+                            st.cache_data.clear()
+                            st.success("Communication logged.")
+                            st.rerun()
+
+            # Full history (includes manual logs, which the agent's invoice-scoped
+            # view would otherwise hide).
+            all_comms = database.get_communications(cid)
+            if not all_comms:
+                st.info("No communications on record.")
             else:
-                for c in comms:
+                for c in sorted(all_comms, key=lambda x: x["date_sent"], reverse=True):
                     tc = {1:("#FEF6E4","#9E6B00"),2:("#FAEEDA","#854F0B"),3:("#FAECE7","#993C1D")}
-                    bg, color = tc.get(c["tier"], ("#f0f0f0","#666"))
+                    if c["tier"] == 0:
+                        bg, color, tier_label = "#EEF4F2", "#3A5A54", "Logged"
+                    else:
+                        bg, color = tc.get(c["tier"], ("#f0f0f0","#666"))
+                        tier_label = f"Tier {c['tier']}"
                     resp = "Responded" if c["customer_responded"] else "No response"
                     rc   = "#3B6D11" if c["customer_responded"] else "#993C1D"
                     st.markdown(f"""
@@ -1160,7 +1190,7 @@ elif "Customer" in page:
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="background:{bg};color:{color};padding:2px 8px;
                                              border-radius:4px;font-size:0.68rem;
-                                             font-weight:600;">Tier {c['tier']}</span>
+                                             font-weight:600;">{tier_label}</span>
                                 <span style="font-size:0.73rem;color:#5A7A74;">{c['date_sent']}</span>
                             </div>
                             <span style="font-size:0.7rem;font-weight:600;color:{rc};">{resp}</span>
