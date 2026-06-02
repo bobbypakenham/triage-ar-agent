@@ -96,6 +96,25 @@ def _enforce_classification(recommendation):
     return recommendation
 
 
+def _agent_error(customer_id, exc):
+    """Fallback recommendation when the agent fails on a single customer.
+
+    Surfaces the failure as a human escalation so it is never silently dropped
+    from the briefing, and lets run_batch continue with the remaining
+    customers instead of aborting the whole run on one bad call.
+    """
+    return {
+        "customer_id": customer_id,
+        "classification": "red",
+        "pattern_noticed": "Automated analysis failed for this customer.",
+        "recommended_action": "escalate_to_human",
+        "drafted_email": None,
+        "reasoning": f"The agent raised an error while analysing this customer: {exc}. "
+                     "Review this account manually.",
+        "_source": "error",  # Marks this as a failure, not a model judgment
+    }
+
+
 # ---------------------------------------------------------------------
 # The batch runner
 # ---------------------------------------------------------------------
@@ -144,8 +163,16 @@ def run_batch(verbose=True, limit=None, progress_callback=None):
         if _worth_analyzing(cid):
             if verbose:
                 print(f"\n[{i}/{total}] Analyzing {cid}...")
-            recommendation = analyze_customer(cid, verbose=verbose)
-            recommendation = _enforce_classification(recommendation)
+            try:
+                recommendation = analyze_customer(cid, verbose=verbose)
+                recommendation = _enforce_classification(recommendation)
+            except Exception as exc:
+                # One customer's failure (API error, agent crash) must not abort
+                # the whole batch. Record it as an escalation so it surfaces in
+                # the briefing, then carry on with the rest.
+                if verbose:
+                    print(f"[{i}/{total}] {cid} failed: {exc!r} — recording as escalation")
+                recommendation = _agent_error(cid, exc)
             analyzed_count += 1
         else:
             if verbose:
@@ -175,26 +202,10 @@ def run_batch(verbose=True, limit=None, progress_callback=None):
     for r in results:
         database.save_batch_result({**r, "run_date": run_date, "run_time": completed_time})
 
-    # Write the JSON snapshot so the briefing can be regenerated without
-    # re-running the agent (which costs money and time).
-    _save_results_json(results, run_date)
-
+    # Results are the single source of truth in SQLite (written incrementally
+    # above and re-stamped here). No JSON snapshot is kept any more — the
+    # briefing reads results straight from the database.
     return results
-
-
-def _save_results_json(results, run_date):
-    """Write the batch results to a JSON file in briefings/ (DB save happens
-    incrementally during the run)."""
-    import json
-    from pathlib import Path
-
-    briefings_dir = Path("briefings")
-    briefings_dir.mkdir(exist_ok=True)
-    output_path = briefings_dir / f"results_{run_date}.json"
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2, default=str)
-
-    print(f"Results saved to {output_path} and SQLite")
 
 
 # ---------------------------------------------------------------------

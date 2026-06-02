@@ -180,7 +180,14 @@ def _log(message):
 
 
 def _call_with_retry(client, messages, max_retries=3):
-    """Call the Claude API with exponential backoff on rate limit errors."""
+    """Call the Claude API with exponential backoff on *transient* errors.
+
+    Retries rate limits, 5xx overloads, and connection/timeout errors. Auth and
+    bad-request errors are not transient — retrying can never make them succeed
+    — so we fail fast with a clear, actionable message instead of burning the
+    retry budget. (AuthenticationError and BadRequestError subclass
+    APIStatusError, so they must be caught before the generic handler below.)
+    """
     for attempt in range(max_retries):
         try:
             return client.messages.create(
@@ -190,11 +197,26 @@ def _call_with_retry(client, messages, max_retries=3):
                 tools=TOOL_SCHEMAS,
                 messages=messages,
             )
-        except anthropic.RateLimitError as e:
+        except anthropic.RateLimitError:
             if attempt == max_retries - 1:
                 raise
             wait = 30 * (2 ** attempt)  # 30s, 60s, 120s
             _log(f"Rate limit hit — waiting {wait}s before retry {attempt + 2}/{max_retries}")
+            time.sleep(wait)
+        except anthropic.AuthenticationError as e:
+            raise RuntimeError(
+                "Anthropic API authentication failed — check ANTHROPIC_API_KEY in "
+                "your environment or .streamlit/secrets.toml."
+            ) from e
+        except anthropic.BadRequestError as e:
+            raise RuntimeError(f"Anthropic API rejected the request: {e}") from e
+        except (anthropic.APIConnectionError, anthropic.APITimeoutError) as e:
+            if attempt == max_retries - 1:
+                raise RuntimeError(
+                    f"Could not reach the Anthropic API after {max_retries} attempts: {e}"
+                ) from e
+            wait = 10 * (2 ** attempt)
+            _log(f"Connection error ({type(e).__name__}) — waiting {wait}s before retry")
             time.sleep(wait)
         except anthropic.APIStatusError as e:
             if e.status_code in (500, 529) and attempt < max_retries - 1:
@@ -219,7 +241,12 @@ def analyze_customer(customer_id, verbose=True):
         _log(f"Starting analysis for {customer_id}")
     
     pre_call_recommendations = len(tools.get_all_recommendations())
-    
+
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set — add it to your environment or "
+            ".streamlit/secrets.toml before running triage."
+        )
     client = anthropic.Anthropic(api_key=api_key)
     
     # Claude's API takes the system prompt as a separate parameter,

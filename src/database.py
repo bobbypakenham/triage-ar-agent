@@ -492,6 +492,64 @@ def clear_dataset():
         """)
 
 
+def replace_dataset(customers: list, invoices: list):
+    """Atomically swap in a freshly-imported dataset.
+
+    Wipes the existing customers/invoices/communications/batch_results and
+    inserts the new records inside a SINGLE transaction. If anything fails
+    part-way through, the whole operation rolls back and the previous dataset
+    is left intact — rather than the old data being wiped and then only
+    partially replaced (the bug this replaces).
+
+    The table is a clean slate after the deletes, so plain INSERTs are safe
+    (no conflict-handling needed). We use individual execute() calls rather
+    than executescript() so everything stays in one transaction that the
+    connection context manager commits on success / rolls back on error.
+    """
+    now = datetime.now().isoformat()
+    with get_conn() as conn:
+        conn.execute("DELETE FROM batch_results")
+        conn.execute("DELETE FROM communications")
+        conn.execute("DELETE FROM invoices")
+        conn.execute("DELETE FROM customers")
+
+        for c in customers:
+            conn.execute("""
+                INSERT INTO customers
+                    (customer_id, company_name, customer_type, contact_name,
+                     contact_email, payment_terms_days, credit_limit,
+                     first_seen, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                c["customer_id"],
+                c.get("company_name") or c.get("name", ""),
+                c.get("customer_type", "business"),
+                c.get("contact_name"),
+                c.get("contact_email"),
+                c.get("payment_terms_days", 30),
+                c.get("credit_limit"),
+                c.get("account_opened") or now,
+                now,
+            ))
+
+        for inv in invoices:
+            conn.execute("""
+                INSERT INTO invoices
+                    (invoice_id, customer_id, issue_date, due_date,
+                     amount, status, paid_date, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                inv["invoice_id"],
+                inv["customer_id"],
+                inv["issue_date"],
+                inv["due_date"],
+                inv["amount"],
+                inv.get("status", "open"),
+                inv.get("paid_date"),
+                now,
+            ))
+
+
 # ─────────────────────────────────────────────────────────────────────
 # MIGRATION — JSON → SQLite
 # ─────────────────────────────────────────────────────────────────────

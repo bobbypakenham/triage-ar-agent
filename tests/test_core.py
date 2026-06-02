@@ -553,3 +553,69 @@ def test_save_batch_result_upserts_same_run_date(db):
     results = db.get_results_for_date("2026-06-01")
     assert len(results) == 1
     assert results[0]["classification"] == "red"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# replace_dataset — atomic CSV import
+# ─────────────────────────────────────────────────────────────────────
+
+def test_replace_dataset_swaps_in_new_data(db):
+    """A successful import wipes the old dataset and installs the new one."""
+    db.upsert_customer({"customer_id": "OLD", "company_name": "Old Co"})
+    db.upsert_invoice({
+        "invoice_id": "OLD-1", "customer_id": "OLD",
+        "issue_date": "2025-01-01", "due_date": "2025-01-31",
+        "amount": 50.0, "status": "open",
+    })
+
+    db.replace_dataset(
+        customers=[{"customer_id": "NEW", "company_name": "New Co",
+                    "payment_terms_days": 14}],
+        invoices=[{"invoice_id": "NEW-1", "customer_id": "NEW",
+                   "issue_date": "2026-01-01", "due_date": "2026-01-31",
+                   "amount": 100.0, "status": "open"}],
+    )
+
+    customers = db.get_all_customers()
+    assert len(customers) == 1
+    assert customers[0]["customer_id"] == "NEW"
+    assert db.get_customer("OLD") is None        # old data gone
+    assert len(db.get_all_invoices("NEW")) == 1
+
+
+def test_replace_dataset_rolls_back_on_failure(db):
+    """If the import fails part-way, the previous dataset is left intact rather
+    than wiped-then-half-loaded."""
+    db.upsert_customer({"customer_id": "OLD", "company_name": "Old Co"})
+
+    # The second record is missing 'customer_id' -> KeyError mid-import, after
+    # the wipe has already run. The single transaction must roll back.
+    bad_customers = [
+        {"customer_id": "NEW", "company_name": "New Co"},
+        {"company_name": "Broken Co"},  # no customer_id -> raises
+    ]
+    with pytest.raises(KeyError):
+        db.replace_dataset(customers=bad_customers, invoices=[])
+
+    survivors = db.get_all_customers()
+    assert len(survivors) == 1
+    assert survivors[0]["customer_id"] == "OLD"   # previous data preserved
+
+
+# ─────────────────────────────────────────────────────────────────────
+# orchestrator._agent_error — per-customer failure fallback
+# ─────────────────────────────────────────────────────────────────────
+
+def test_agent_error_is_a_valid_escalation():
+    """A failed customer becomes a red escalation that save_batch_result can
+    persist (no missing keys), so failures surface instead of vanishing."""
+    from src import orchestrator
+
+    rec = orchestrator._agent_error("C001", RuntimeError("API down"))
+
+    assert rec["customer_id"] == "C001"
+    assert rec["classification"] == "red"
+    assert rec["recommended_action"] == "escalate_to_human"
+    assert rec["drafted_email"] is None
+    assert "API down" in rec["reasoning"]
+    assert {"customer_id", "classification", "recommended_action"} <= rec.keys()

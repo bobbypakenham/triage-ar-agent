@@ -1,8 +1,8 @@
 """
 briefing.py — Turns batch results into a dated morning briefing.
 
-Reads the saved results JSON (produced by the orchestrator) and formats
-it into a markdown report a credit controller would read each morning.
+Reads batch results (produced by the orchestrator and stored in SQLite) and
+formats them into a markdown report a credit controller would read each morning.
 
 Structure:
   - Header (generation date, data-as-of date, one-line summary)
@@ -15,7 +15,6 @@ Sections are ordered by urgency: act on red first, approve amber emails
 next, green is just an all-clear list at the bottom.
 """
 
-import json
 from datetime import datetime
 from pathlib import Path
 
@@ -187,29 +186,21 @@ def generate_briefing(results, save=True):
     return briefing_text
 
 
-def generate_from_saved_results(results_path=None):
-    """
-    Load a saved results JSON and generate a briefing from it.
-    Lets us regenerate the briefing without re-running the agent.
-    """
-    if results_path is None:
-        date_file = datetime.now().strftime("%Y-%m-%d")
-        results_path = BRIEFINGS_DIR / f"results_{date_file}.json"
-
-    with open(results_path, "r") as f:
-        results = json.load(f)
-
-    return generate_briefing(results, save=True)
-
-
 # ---------------------------------------------------------------------
-# Self-test — generate a briefing from the saved results file
+# Self-test — regenerate a briefing from the latest results in SQLite
+# (results live in the database now; there is no JSON snapshot to read)
 # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    briefing = generate_from_saved_results()
-    print("\n" + "=" * 60)
-    print("BRIEFING PREVIEW (first 60 lines)")
-    print("=" * 60)
-    for line in briefing.split("\n")[:60]:
-        print(line)
+    from src import database
+
+    results, _run_time, _run_date = database.get_latest_results()
+    if not results:
+        print("No batch results in the database yet — run a batch first.")
+    else:
+        briefing = generate_briefing(results, save=True)
+        print("\n" + "=" * 60)
+        print("BRIEFING PREVIEW (first 60 lines)")
+        print("=" * 60)
+        for line in briefing.split("\n")[:60]:
+            print(line)

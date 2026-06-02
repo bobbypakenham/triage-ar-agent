@@ -41,7 +41,12 @@ def _configured_credentials():
     if passwords:
         try:
             return "multi", {str(u): str(p) for u, p in dict(passwords).items()}
-        except Exception:
+        except (TypeError, ValueError, AttributeError):
+            # A malformed [passwords] table shouldn't crash the app, but it
+            # also shouldn't silently open it — warn so misconfiguration is
+            # visible rather than hidden behind an unguarded gate.
+            st.warning("Auth is misconfigured: the [passwords] secret is not a "
+                       "valid username→password table. Sign-in is unavailable.")
             return None, None
     single = _secret("app_password")
     if single:

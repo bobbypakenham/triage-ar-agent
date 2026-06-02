@@ -1457,11 +1457,13 @@ elif "Upload" in page:
                 c3.metric("Total outstanding", f"€{stats['total_outstanding']:,.2f}")
                 c4.metric("Overdue", f"€{stats['total_overdue']:,.2f}")
 
-                database.clear_dataset()
-                for c in customers:
-                    database.upsert_customer(c)
-                for inv in invoices:
-                    database.upsert_invoice(inv)
+                try:
+                    # Atomic swap: a failure mid-import rolls back and leaves
+                    # the previous ledger intact rather than half-wiped.
+                    database.replace_dataset(customers, invoices)
+                except Exception as e:
+                    st.error(f"Import failed — your previous data is unchanged: {e}")
+                    st.stop()
 
                 for stale in Path("briefings").glob("results_*.json"):
                     stale.unlink()
@@ -1618,8 +1620,10 @@ elif "Run History" in page:
                             <span style="font-size:0.78rem;color:#8AADA8;">{len(run_data)} total analysed</span>
                         </div>
                     </div>""", unsafe_allow_html=True)
-                except Exception:
-                    pass
+                except (KeyError, TypeError, ValueError) as e:
+                    # A corrupt/incomplete row shouldn't blank the whole page —
+                    # skip it, but say so rather than failing silently.
+                    st.caption(f"Could not render run {run_date}: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────
