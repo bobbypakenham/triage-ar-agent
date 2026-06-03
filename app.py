@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 import streamlit as st
 import pandas as pd
-from src import tools, database, runner, auth
+from src import tools, database, runner, auth, scheduler
 from src.csv_handler import (
     load_csv, auto_detect_columns, validate_mapping,
     normalise, summary_stats, REQUIRED_FIELDS, FIELD_PATTERNS,
@@ -31,6 +31,29 @@ st.set_page_config(
 )
 
 database.init_and_migrate()
+
+# ─────────────────────────────────────────────────────────────────────
+# DAILY AUTO-RUN SCHEDULER
+# ─────────────────────────────────────────────────────────────────────
+def _secret(key, default=None):
+    """Read a key from st.secrets, tolerating the absence of any secrets.toml
+    (st.secrets raises rather than returning None when no file exists)."""
+    try:
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
+
+SCHEDULER_ENABLED = bool(_secret("SCHEDULER_ENABLED", True))
+SCHEDULER_TIME = _secret("scheduler_time", scheduler.DEFAULT_RUN_TIME) or scheduler.DEFAULT_RUN_TIME
+
+# Start the background scheduler exactly once per process. Streamlit reruns this
+# script on every interaction, so guard with st.session_state to avoid touching
+# it on each rerun; scheduler.start_scheduler is also idempotent at the process
+# level as a backstop across multiple browser sessions. Started before auth so
+# scheduled runs don't depend on a user being logged in.
+if SCHEDULER_ENABLED and not st.session_state.get("_scheduler_started"):
+    scheduler.start_scheduler(SCHEDULER_TIME)
+    st.session_state["_scheduler_started"] = True
 
 # Gate the whole app behind a password (configured in .streamlit/secrets.toml).
 # No-op when no credentials are configured, e.g. local dev. Must run before
@@ -458,6 +481,19 @@ with st.sidebar:
             <span style="font-size:0.78rem;color:rgba(255,255,255,0.7);">Clear</span>
             <span style="font-size:0.78rem;font-weight:600;color:#5DCAA5;">{len(green)}</span>
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Scheduler status ──
+    if SCHEDULER_ENABLED:
+        _sched_hh, _sched_mm = scheduler.parse_time(SCHEDULER_TIME)
+        _sched_status = f"Auto-run scheduled for {_sched_hh:02d}:{_sched_mm:02d}"
+    else:
+        _sched_status = "Scheduler disabled."
+    st.markdown(f"""
+    <div style="margin:10px 12px 0;font-size:0.68rem;color:#9FE1CB;
+                letter-spacing:0.02em;display:flex;align-items:center;gap:6px;">
+        <span style="font-size:0.72rem;">⏱</span>{_sched_status}
     </div>
     """, unsafe_allow_html=True)
 
