@@ -28,6 +28,12 @@ from src import runner, database
 logger = logging.getLogger("triage.scheduler")
 
 DEFAULT_RUN_TIME = "06:00"
+
+# Off by default: the scheduler runs only when SCHEDULER_ENABLED is explicitly
+# set to true in secrets. This avoids any deployment silently incurring a daily
+# API batch (~$0.50/run) that nobody asked for.
+DEFAULT_ENABLED = False
+
 _JOB_ID = "daily_triage_batch"
 
 # Module-level handle so we never build more than one scheduler per process,
