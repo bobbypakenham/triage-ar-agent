@@ -43,7 +43,7 @@ def _secret(key, default=None):
     except Exception:
         return default
 
-SCHEDULER_ENABLED = bool(_secret("SCHEDULER_ENABLED", scheduler.DEFAULT_ENABLED))
+SCHEDULER_ENABLED = bool(_secret("SCHEDULER_ENABLED", False))  # matches scheduler.DEFAULT_ENABLED
 SCHEDULER_TIME = _secret("scheduler_time", scheduler.DEFAULT_RUN_TIME) or scheduler.DEFAULT_RUN_TIME
 
 # Start the background scheduler exactly once per process. Streamlit reruns this
