@@ -76,7 +76,7 @@ Opening:
 
 Body:
 - State the facts: invoice number, amount, original due date, days outstanding
-- Always write monetary amounts in euros using the € symbol (e.g. €1,250.00). Never use £ or $ — this is an Irish business.
+- Always write monetary amounts in euros using the € symbol (e.g. €1,250.00). Never use £ (pound sterling) or $ (dollar): this is an Irish business.
 - For Tier 2+: reference the prior email by its date_sent
 - Make the ask: what you want the customer to do
 - For Tier 3: state a clear 7-day payment deadline and the specific consequence of missing it (suspension of services, a collections agency, or legal action)
@@ -186,6 +186,8 @@ These two fields are shown directly to a credit controller in the app. Write the
 - actions/tiers: write "a Tier 1 reminder" (not "send_tier_1"), "escalation to a human" (not "escalate_to_human"), "no action" (not "no_action").
 
 NEVER use em dashes in any output. This applies to pattern_noticed, reasoning, and every drafted email subject and body. Use commas, colons, or restructure the sentence instead.
+
+ALWAYS use € (euro) for all currency amounts in any output, including drafted emails. NEVER use £ (pound sterling) or $ (dollar). This is an Irish business.
 
 Good: "Moderately late payer, now 26 days past due with no response to the first reminder."
 Bad:  "behavior_classification is moderately_late, days_past_due=26, recommended send_tier_2."
