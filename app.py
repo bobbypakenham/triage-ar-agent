@@ -500,19 +500,23 @@ with st.sidebar:
     # Spacer
     st.markdown("<div style='flex:1'></div>", unsafe_allow_html=True)
 
-    # ── User avatar at bottom ──
-    st.markdown("""
-    <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,0.08);
-                margin-top:auto;display:flex;align-items:center;gap:10px;">
-        <div style="width:30px;height:30px;background:#1D9E75;border-radius:50%;
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:0.72rem;font-weight:700;color:#fff;flex-shrink:0;">SC</div>
-        <div>
-            <div style="font-size:0.78rem;font-weight:500;color:#fff;">Sarah C.</div>
-            <div style="font-size:0.65rem;color:#9FE1CB;">Credit controller</div>
+    # ── Logged-in user at bottom ──
+    # Show the authenticated username (from secrets, set during auth). Render
+    # nothing when no auth is configured — never a hardcoded name or role.
+    _user = auth.current_user()
+    if _user:
+        _initials = _user[:2].upper()
+        st.markdown(f"""
+        <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,0.08);
+                    margin-top:auto;display:flex;align-items:center;gap:10px;">
+            <div style="width:30px;height:30px;background:#1D9E75;border-radius:50%;
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:0.72rem;font-weight:700;color:#fff;flex-shrink:0;">{_initials}</div>
+            <div>
+                <div style="font-size:0.78rem;font-weight:500;color:#fff;">{_user}</div>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     # ── Radio CSS fix ──
     st.markdown("""
@@ -824,10 +828,16 @@ if "Daily" in page:
             st.info("Ledger uploaded. Run triage to analyse your accounts.")
             _start_triage_button()
             st.stop()
-        elif not todays_run_exists:
+
+        # Results exist. The Run Triage button stays available regardless of
+        # whether the results are from today — the running/finalise guards above
+        # short-circuit while a batch is in flight, and the handler itself blocks
+        # a re-run within 60 minutes. Show a status line when the briefing isn't
+        # today's, then the button, then fall through to render the briefing.
+        if not todays_run_exists:
             st.info(f"Last run: {RUN_TIME}. Run triage to refresh today's briefing.")
-            _start_triage_button("Run Triage")
-            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        _start_triage_button("Run Triage")
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
         # ── STAT CARDS ──
         c1, c2, c3, c4 = st.columns(4)
