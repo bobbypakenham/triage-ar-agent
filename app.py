@@ -760,6 +760,22 @@ if "Daily" in page:
         def _start_triage_button(label="Run Triage"):
             """Render the button that kicks off a background batch run."""
             if st.button(label, type="primary"):
+                # Block back-to-back runs: if a batch completed less than 60
+                # minutes ago, ask the user to wait rather than burn another
+                # API batch. If there's no prior run (run_date is None) or the
+                # stored time can't be parsed, allow the run.
+                _results, _run_time, _run_date = database.get_latest_results()
+                if _run_date is not None:
+                    try:
+                        last_run = datetime.strptime(
+                            f"{_run_date} {_run_time}", "%Y-%m-%d %H:%M"
+                        )
+                        minutes_since = (datetime.now() - last_run).total_seconds() / 60
+                        if 0 <= minutes_since < 60:
+                            st.warning("Triage was run recently — please wait before running again.")
+                            return
+                    except (ValueError, TypeError):
+                        pass  # unparseable run time — can't judge recency, allow
                 runner.start_run()  # no-op if one is already running
                 st.session_state["_triage_active"] = True
                 st.rerun()
