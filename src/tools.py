@@ -81,7 +81,14 @@ def get_payment_stats(customer_id):
         return {"error": f"Customer {customer_id} not found"}
 
     all_invoices = database.get_all_invoices(customer_id)
-    paid_invoices = [inv for inv in all_invoices if inv["status"] == "paid"]
+    # Partial payments contribute proportionally to the behaviour stats (see
+    # stats._payment_weight), so include them alongside fully paid invoices —
+    # but only once they have a payment date to measure against.
+    paid_invoices = [
+        inv for inv in all_invoices
+        if inv["status"] == "paid"
+        or (inv["status"] == "partial" and inv.get("paid_date"))
+    ]
     open_invoices = [inv for inv in all_invoices if inv["status"] in ("open", "overdue")]
 
     current_open = None

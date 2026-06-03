@@ -388,6 +388,108 @@ def test_compute_payment_stats_high_risk_customer():
 
 
 # ─────────────────────────────────────────────────────────────────────
+# stats — partial payments
+# ─────────────────────────────────────────────────────────────────────
+
+def _partial_invoice(issue, due, paid, *, inv_id, amount=1000.0, amount_paid=600.0):
+    return {
+        "invoice_id": inv_id, "issue_date": issue, "due_date": due,
+        "paid_date": paid, "amount": amount, "amount_paid": amount_paid,
+        "status": "partial",
+    }
+
+
+def test_partial_payment_counts_as_partial_reliability_credit():
+    """An on-time partial payment earns credit equal to the proportion paid
+    (amount_paid / amount), not a flat 1.0."""
+    base = date(2025, 1, 1)
+    invoices = []
+    for i in range(5):
+        issue = base + timedelta(days=i * 35)
+        due = issue + timedelta(days=30)
+        paid = due - timedelta(days=10)  # paid on time
+        invoices.append(_partial_invoice(
+            issue.isoformat(), due.isoformat(), paid.isoformat(),
+            inv_id=f"INV-{i:03d}", amount=1000.0, amount_paid=600.0,  # 60% paid
+        ))
+
+    result = stats.compute_payment_stats(invoices)
+
+    # On time, but only 60% paid -> 0.6 credit each, not 1.0.
+    assert result["reliability_score"] == 0.6
+    assert result["behavior_classification"] != "reliable"
+
+
+def test_partial_payment_weights_avg_days_to_pay():
+    """avg_days_to_pay is weighted by the proportion paid: a half-paid invoice
+    pulls the average half as hard as a fully paid one."""
+    base = date(2025, 1, 1)
+
+    def _mk(i, days_to_pay, full):
+        issue = base + timedelta(days=i * 40)
+        due = issue + timedelta(days=30)
+        paid = issue + timedelta(days=days_to_pay)
+        if full:
+            return _paid_invoice(issue.isoformat(), due.isoformat(),
+                                 paid.isoformat(), inv_id=f"F{i}")
+        return _partial_invoice(issue.isoformat(), due.isoformat(),
+                                paid.isoformat(), inv_id=f"P{i}",
+                                amount=1000.0, amount_paid=500.0)  # 50%
+
+    invoices = [_mk(0, 20, True), _mk(1, 40, False), _mk(2, 40, False)]
+    result = stats.compute_payment_stats(invoices)
+
+    # Weighted: (1*20 + 0.5*40 + 0.5*40) / (1 + 0.5 + 0.5) = 60 / 2 = 30.
+    # (The unweighted mean would be 33.3.)
+    assert result["avg_days_to_pay"] == 30.0
+
+
+def test_only_partial_payments_never_classified_reliable():
+    """A customer who only ever pays part of each bill is not 'reliable', even
+    when those part-payments are all on time and a high proportion."""
+    base = date(2025, 1, 1)
+    invoices = []
+    for i in range(6):
+        issue = base + timedelta(days=i * 35)
+        due = issue + timedelta(days=30)
+        paid = due - timedelta(days=5)  # on time
+        invoices.append(_partial_invoice(
+            issue.isoformat(), due.isoformat(), paid.isoformat(),
+            inv_id=f"INV-{i:03d}", amount=1000.0, amount_paid=900.0,  # 90% paid
+        ))
+
+    result = stats.compute_payment_stats(invoices)
+
+    # 90% on-time credit would read as 'reliable' for full payments; only-partial
+    # demotes it.
+    assert result["reliability_score"] == 0.9
+    assert result["behavior_classification"] != "reliable"
+    assert result["behavior_classification"] == "slow_but_consistent"
+
+
+def test_get_payment_stats_includes_partial_invoices(db):
+    """tools.get_payment_stats feeds partial invoices into the stats (it used to
+    drop everything that wasn't status 'paid')."""
+    db.upsert_customer({"customer_id": "C001", "company_name": "Acme Ltd"})
+    db.upsert_invoice({
+        "invoice_id": "F1", "customer_id": "C001",
+        "issue_date": "2025-01-01", "due_date": "2025-01-31",
+        "amount": 1000.0, "status": "paid", "paid_date": "2025-01-20",
+    })
+    db.upsert_invoice({
+        "invoice_id": "P1", "customer_id": "C001",
+        "issue_date": "2025-02-01", "due_date": "2025-03-03",
+        "amount": 1000.0, "status": "open",
+    })
+    db.mark_invoice_paid("P1", "2025-02-15", amount_paid=400.0)  # -> partial
+
+    result = tools.get_payment_stats("C001")
+
+    # Both the fully paid and the partial invoice now count as history.
+    assert result["total_invoices_paid"] == 2
+
+
+# ─────────────────────────────────────────────────────────────────────
 # get_communications_log: 60-day window
 # ─────────────────────────────────────────────────────────────────────
 

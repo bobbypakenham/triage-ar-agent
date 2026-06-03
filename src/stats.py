@@ -25,10 +25,27 @@ def _days_between(start_date_str, end_date_str):
     return (end - start).days
 
 
+def _payment_weight(inv):
+    """How much of an invoice has actually been paid, as a fraction in [0, 1].
+
+    A fully paid invoice counts as a whole payment (1.0). A partial payment
+    counts proportionally — amount_paid / amount — so e.g. €600 paid against a
+    €1,000 invoice contributes 0.6 of a payment to the behaviour stats rather
+    than a full one. Anything missing the figures it needs degrades to 0.0.
+    """
+    if inv.get("status") == "partial":
+        amount = inv.get("amount") or 0
+        amount_paid = inv.get("amount_paid") or 0
+        if amount > 0:
+            return max(0.0, min(1.0, amount_paid / amount))
+        return 0.0
+    return 1.0
+
+
 def compute_days_to_pay(paid_invoices):
     """
     For each paid invoice, compute how many days the customer took to pay
-    (from issue_date to paid_date).
+    (from issue_date to paid_date — for partials, the partial payment date).
     Returns a list of integers.
     """
     return [
@@ -39,31 +56,55 @@ def compute_days_to_pay(paid_invoices):
 
 def compute_reliability_score(paid_invoices):
     """
-    Fraction of invoices paid on or before the due date.
-    Returns a float between 0.0 and 1.0.
+    Reliability: how much of the customer's billing they pay on or before the
+    due date, as a fraction in [0, 1]. A fully paid on-time invoice earns full
+    credit (1.0); a partial on-time payment earns partial credit equal to the
+    proportion paid (amount_paid / amount) rather than a flat 0 or 1. The
+    denominator is the invoice count, so a customer who only ever pays part of
+    each bill can never reach a perfect score.
     """
     if not paid_invoices:
         return 0.0
-    
-    on_time_count = sum(
-        1 for inv in paid_invoices
+
+    on_time_credit = sum(
+        _payment_weight(inv)
+        for inv in paid_invoices
         if _days_between(inv["due_date"], inv["paid_date"]) <= 0
     )
-    return on_time_count / len(paid_invoices)
+    return on_time_credit / len(paid_invoices)
+
+
+def compute_avg_days_to_pay(paid_invoices):
+    """
+    Weighted average days-to-pay (issue_date → paid_date). Each invoice is
+    weighted by the proportion paid, so partial payments pull the average less
+    than full ones. Returns 0.0 when there is nothing paid to average.
+    """
+    total_weight = sum(_payment_weight(inv) for inv in paid_invoices)
+    if total_weight == 0:
+        return 0.0
+    weighted_days = sum(
+        _payment_weight(inv) * _days_between(inv["issue_date"], inv["paid_date"])
+        for inv in paid_invoices
+    )
+    return weighted_days / total_weight
+
 
 def compute_avg_days_late(paid_invoices):
     """
-    Average number of days late across all paid invoices.
-    Positive = paid after due date (late), negative = paid early.
-    Measured from the due_date, so payment terms are already accounted for.
+    Weighted average days late across paid invoices, measured from the due_date
+    (so payment terms are already accounted for). Positive = paid late,
+    negative = paid early. Partial payments contribute proportionally, matching
+    avg_days_to_pay.
     """
-    if not paid_invoices:
+    total_weight = sum(_payment_weight(inv) for inv in paid_invoices)
+    if total_weight == 0:
         return 0.0
-    days_late_list = [
-        _days_between(inv["due_date"], inv["paid_date"])
+    weighted_late = sum(
+        _payment_weight(inv) * _days_between(inv["due_date"], inv["paid_date"])
         for inv in paid_invoices
-    ]
-    return mean(days_late_list)
+    )
+    return weighted_late / total_weight
 
 
 def compute_trend(days_to_pay_list, recent_window=3):
@@ -155,20 +196,30 @@ def compute_payment_stats(paid_invoices, current_open_invoice=None):
         }
     
     days_to_pay = compute_days_to_pay(paid_invoices)
-    
-    avg_dtp = mean(days_to_pay)
+
+    # avg_dtp is weighted by the proportion paid (partials count for less);
+    # median/std/trend use the raw timing of every payment, partial or not.
+    avg_dtp = compute_avg_days_to_pay(paid_invoices)
     median_dtp = median(days_to_pay)
     std_dtp = stdev(days_to_pay) if len(days_to_pay) > 1 else 0.0
-    
+
     recent_window = min(3, len(days_to_pay))
     recent_avg_dtp = mean(days_to_pay[-recent_window:])
-    
+
     reliability = compute_reliability_score(paid_invoices)
     trend = compute_trend(days_to_pay)
     avg_days_late = compute_avg_days_late(paid_invoices)
     classification = classify_behavior(
         len(paid_invoices), reliability, std_dtp, trend, avg_days_late
     )
+
+    # A customer who has only ever made partial payments — never clearing a
+    # single invoice in full — is not "reliable", however on-time those part
+    # payments are. Demote so the agent treats the outstanding balances as the
+    # live concern they are.
+    only_partial = all(inv.get("status") == "partial" for inv in paid_invoices)
+    if only_partial and classification == "reliable":
+        classification = "slow_but_consistent"
     
     # Summary of recently paid invoices (last 60 days) — gives the agent context
     # about whether the customer has been actively paying or gone silent
