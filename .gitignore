@@ -18,3 +18,5 @@ __pycache__/
 
 # SQLite database (runtime data — seeded from JSON on startup)
 *.db
+data/*.db-shm
+data/*.db-wal
