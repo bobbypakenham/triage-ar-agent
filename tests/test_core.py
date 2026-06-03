@@ -16,7 +16,6 @@ the real data/triage.db and data/*.json are never touched.
 
 import sys
 import json
-import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -28,39 +27,8 @@ sys.path.insert(0, str(ROOT))
 
 from src import database, tools, csv_handler, stats  # noqa: E402
 
-
-# ─────────────────────────────────────────────────────────────────────
-# Fixtures
-# ─────────────────────────────────────────────────────────────────────
-
-@pytest.fixture
-def db(tmp_path, monkeypatch):
-    """Isolated, in-memory SQLite database for fast, fully-isolated DB tests.
-
-    database.get_conn() normally opens a *new* connection on every call. A bare
-    ':memory:' path would therefore give each call its own private, empty
-    database — writes would never be visible to later reads. So we create ONE
-    persistent in-memory connection and monkeypatch get_conn to hand it back
-    every time. SQLite's `with conn:` context manager commits (or rolls back)
-    but does NOT close, so the single connection safely survives every
-    `with get_conn() as conn:` block in the module.
-
-    We also chdir into tmp_path so any relative paths (the 'data/' dir, the
-    JSON migration source) resolve inside the temp dir and never touch real
-    project files. The connection is closed on teardown.
-    """
-    monkeypatch.chdir(tmp_path)
-
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys=ON")
-    monkeypatch.setattr(database, "get_conn", lambda: conn)
-
-    database.init_db()
-    try:
-        yield database
-    finally:
-        conn.close()
+# The `db` fixture (isolated in-memory SQLite) lives in tests/conftest.py so it
+# is shared across the suite.
 
 
 SAMPLE_CSV = (
