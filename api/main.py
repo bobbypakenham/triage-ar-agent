@@ -202,6 +202,9 @@ def list_customers():
         cid = c["customer_id"]
         overdue, outstanding = _overdue_and_outstanding(cid)
         open_invoices = database.get_open_invoices(cid)
+        days_overdue = max(
+            (inv["days_past_due"] for inv in open_invoices), default=0
+        )
         rec = latest_by_id.get(cid)
         out.append(
             {
@@ -212,6 +215,7 @@ def list_customers():
                 "open_invoice_count": len(open_invoices),
                 "outstanding": outstanding,
                 "overdue": overdue,
+                "days_overdue": days_overdue,
                 "classification": rec.get("classification") if rec else None,
                 "recommended_action": rec.get("recommended_action") if rec else None,
             }

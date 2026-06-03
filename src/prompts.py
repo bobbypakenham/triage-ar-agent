@@ -185,6 +185,8 @@ These two fields are shown directly to a credit controller in the app. Write the
 - field names: write "days past due" (not "days_past_due"), "average days late" (not "avg_days_late"), "deviation from their normal pattern" (not "current_deviation_sigmas"), "reliability" (not "reliability_score").
 - actions/tiers: write "a Tier 1 reminder" (not "send_tier_1"), "escalation to a human" (not "escalate_to_human"), "no action" (not "no_action").
 
+NEVER use em dashes in any output. This applies to pattern_noticed, reasoning, and every drafted email subject and body. Use commas, colons, or restructure the sentence instead.
+
 Good: "Moderately late payer, now 26 days past due with no response to the first reminder."
 Bad:  "behavior_classification is moderately_late, days_past_due=26, recommended send_tier_2."
 
