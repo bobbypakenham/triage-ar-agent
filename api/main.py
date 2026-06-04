@@ -206,6 +206,12 @@ def list_customers():
             (inv["days_past_due"] for inv in open_invoices), default=0
         )
         rec = latest_by_id.get(cid)
+        stats = tools.get_payment_stats(cid)
+        behavior = (
+            stats.get("behavior_classification")
+            if isinstance(stats, dict) and "error" not in stats
+            else None
+        )
         out.append(
             {
                 "customer_id": cid,
@@ -218,9 +224,71 @@ def list_customers():
                 "days_overdue": days_overdue,
                 "classification": rec.get("classification") if rec else None,
                 "recommended_action": rec.get("recommended_action") if rec else None,
+                "behavior_classification": behavior,
             }
         )
     return out
+
+
+@app.get("/api/runs", tags=["read"], dependencies=[Depends(require_api_key)])
+def list_runs():
+    """Past triage runs, newest first, derived from the batch_results table.
+
+    Each run reports per-classification counts and which customers changed
+    classification versus the previous (older) run. Overdue value at the time of
+    a run is not stored historically, so it is omitted here (it can only be
+    recorded going forward)."""
+    run_dates = database.get_run_dates()  # newest first
+    name_by_id = {
+        c["customer_id"]: (
+            c.get("company_name") or c.get("contact_name") or c["customer_id"]
+        )
+        for c in database.get_all_customers()
+    }
+    results_by_date = {d: database.get_results_for_date(d) for d in run_dates}
+
+    runs = []
+    for i, run_date in enumerate(run_dates):
+        results = results_by_date[run_date]
+        counts = {"red": 0, "amber": 0, "green": 0}
+        for r in results:
+            cls = r.get("classification")
+            if cls in counts:
+                counts[cls] += 1
+        run_time = next((r.get("run_time") for r in results if r.get("run_time")), None)
+
+        # Compare against the previous (chronologically older) run, if any.
+        older_date = run_dates[i + 1] if i + 1 < len(run_dates) else None
+        changes = []
+        if older_date:
+            older = {
+                r["customer_id"]: r.get("classification")
+                for r in results_by_date[older_date]
+            }
+            for r in results:
+                prev = older.get(r["customer_id"])
+                cur = r.get("classification")
+                if prev and cur and prev != cur:
+                    changes.append(
+                        {
+                            "customer_id": r["customer_id"],
+                            "name": name_by_id.get(r["customer_id"], r["customer_id"]),
+                            "from": prev,
+                            "to": cur,
+                        }
+                    )
+
+        runs.append(
+            {
+                "run_date": run_date,
+                "run_time": run_time,
+                "total": len(results),
+                "counts": counts,
+                "compared_to": older_date,
+                "changes": changes,
+            }
+        )
+    return runs
 
 
 @app.get(
