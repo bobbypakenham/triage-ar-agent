@@ -14,7 +14,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
-DB_PATH = Path("data/triage.db")
+DB_PATH = os.environ.get('DB_PATH', 'data/triage.db')
 
 
 # ─────────────────────────────────────────────────────────────────────
