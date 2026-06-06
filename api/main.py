@@ -40,9 +40,9 @@ from src import csv_handler, database, tools
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure the schema exists before serving. Safe (CREATE IF NOT EXISTS) and
-    # never wipes existing data.
-    database.init_db()
+    # Ensure the default user's schema exists before serving. Safe
+    # (CREATE IF NOT EXISTS) and never wipes existing data.
+    database.ensure_initialized()
     yield
 
 
@@ -52,6 +52,36 @@ app = FastAPI(
     summary="HTTP wrapper around the Triage AR engine.",
     lifespan=lifespan,
 )
+
+
+class UserDatabaseMiddleware:
+    """Route each request to its user's isolated SQLite database.
+
+    Reads the Supabase user id from the X-User-ID header (sent by the Next.js
+    server) and stores it in a contextvar for the duration of the request, so
+    every database call resolves to that user's file. Pure ASGI (not
+    BaseHTTPMiddleware) so the contextvar reliably propagates into the sync route
+    handlers that run in the threadpool. Absent header → the "default" user.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers") or [])
+        user_id = headers.get(b"x-user-id", b"default").decode() or "default"
+        token = database.set_current_user_id(user_id)
+        database.ensure_initialized()
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            database.reset_current_user_id(token)
+
+
+app.add_middleware(UserDatabaseMiddleware)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -462,7 +492,8 @@ def triage_run():
     run."""
     from src.runner import get_state, start_run  # lazy: pulls in the agent chain
 
-    started = start_run()
+    # Pass the current user so the background thread writes to their database.
+    started = start_run(database.get_current_user_id())
     return {"started": started, "status": _serialize_run_state(get_state())}
 
 

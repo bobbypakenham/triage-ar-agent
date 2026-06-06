@@ -10,24 +10,67 @@ DB file location: data/triage.db
 import sqlite3
 import json
 import os
+import contextvars
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
-DB_PATH = os.environ.get('DB_PATH', 'data/triage.db')
+# ─────────────────────────────────────────────────────────────────────
+# PER-USER DATABASE PATH + CONNECTION
+#
+# Each Supabase user gets an isolated SQLite file so pilots never see or
+# overwrite each other's data. The current user for a unit of work is held in a
+# contextvar — set per HTTP request by the API middleware, and per background
+# triage thread by the runner. get_conn() stays zero-argument so the existing
+# test suite can keep monkeypatching it.
+# ─────────────────────────────────────────────────────────────────────
+
+_current_user_id = contextvars.ContextVar("triage_user_id", default="default")
+_initialized_users = set()
 
 
-# ─────────────────────────────────────────────────────────────────────
-# CONNECTION
-# ─────────────────────────────────────────────────────────────────────
+def get_db_path(user_id: str = "default") -> str:
+    base = os.environ.get("DB_BASE_PATH", "data")
+    # Sanitise user_id to prevent path traversal.
+    safe_id = "".join(c for c in user_id if c.isalnum() or c in "-_")
+    if not safe_id:
+        safe_id = "default"
+    # The original shared database stays exactly where it is and serves the
+    # "default" user (no migration needed); every other user gets <id>.db.
+    filename = "triage.db" if safe_id == "default" else f"{safe_id}.db"
+    path = f"{base}/{filename}"
+    os.makedirs(base, exist_ok=True)
+    return path
+
+
+def set_current_user_id(user_id: str):
+    """Route subsequent get_conn() calls to this user's database. Returns a
+    token that can be passed to reset_current_user_id()."""
+    return _current_user_id.set(user_id or "default")
+
+
+def reset_current_user_id(token) -> None:
+    _current_user_id.reset(token)
+
+
+def get_current_user_id() -> str:
+    return _current_user_id.get()
+
 
 def get_conn() -> sqlite3.Connection:
-    os.makedirs("data", exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path(get_current_user_id()))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def ensure_initialized() -> None:
+    """Create the schema for the current user's database, once per process."""
+    user_id = get_current_user_id()
+    if user_id not in _initialized_users:
+        init_db()
+        _initialized_users.add(user_id)
 
 
 # ─────────────────────────────────────────────────────────────────────

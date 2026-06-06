@@ -47,8 +47,15 @@ def _set_progress(done, total, label):
         _STATE["current"] = label
 
 
-def _worker():
+def _worker(user_id="default"):
     # Imported lazily so importing this module stays cheap and side-effect free.
+    from src import database
+
+    # A new thread starts with a fresh contextvars context, so set the user here
+    # — every database call in this run then resolves to that user's file.
+    database.set_current_user_id(user_id)
+    database.ensure_initialized()
+
     from src.orchestrator import run_batch
     try:
         run_batch(verbose=False, progress_callback=_set_progress)
@@ -61,8 +68,8 @@ def _worker():
             _STATE["finished_at"] = datetime.now()
 
 
-def start_run() -> bool:
-    """Start a batch on a background thread.
+def start_run(user_id: str = "default") -> bool:
+    """Start a batch on a background thread for the given user.
 
     Returns True if a new run was started, False if one was already running
     (so we never launch two batches at once).
@@ -78,6 +85,8 @@ def start_run() -> bool:
             "error": None,
             "finished_at": None,
         })
-    thread = threading.Thread(target=_worker, name="triage-batch", daemon=True)
+    thread = threading.Thread(
+        target=_worker, args=(user_id,), name="triage-batch", daemon=True
+    )
     thread.start()
     return True
