@@ -1,6 +1,11 @@
 # Triage - AR Intelligence Platform
 
-An AI agent that replaces the manual morning triage a credit controller does every day. Instead of spending 2-3 hours pulling up accounts, checking payment history, deciding who to chase, and drafting reminder emails — the agent does it overnight and delivers a prioritised briefing at the start of the day.
+**An AI agent that does a credit controller's morning triage overnight — prioritising accounts, classifying payment behaviour, and drafting chase emails — built on a from-scratch Anthropic tool-calling loop.**
+![Python](https://img.shields.io/badge/Python-3.13-blue)
+![Anthropic](https://img.shields.io/badge/Anthropic-Claude%20Sonnet%204.5-orange)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-red)
+
+Instead of spending 2-3 hours pulling up accounts, checking payment history, deciding who to chase, and drafting reminder emails — the agent does it overnight and delivers a prioritised briefing at the start of the day.
 
 Built from a credit control background. The morning triage was always the worst part of the job — not because the judgments were hard, but because they were slow, repetitive, and easy to do badly across 50-200 accounts. This is the tool that would have made that job better.
 
@@ -111,6 +116,14 @@ python -m src.briefing
 ```
 
 ---
+
+## Tests
+
+```bash
+pytest
+```
+
+Unit tests cover the statistics layer (deviation, trend, lateness) and the tool functions — the deterministic core the agent's judgments depend on.
 
 ## How it works in production
 
