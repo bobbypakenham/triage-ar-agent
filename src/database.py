@@ -544,10 +544,15 @@ def replace_dataset(customers: list, invoices: list):
     is left intact — rather than the old data being wiped and then only
     partially replaced (the bug this replaces).
 
-    The table is a clean slate after the deletes, so plain INSERTs are safe
-    (no conflict-handling needed). We use individual execute() calls rather
-    than executescript() so everything stays in one transaction that the
-    connection context manager commits on success / rolls back on error.
+    The deletes clear the previous dataset, but the *incoming* batch can still
+    contain the same id twice — e.g. an aged-debtors CSV that lists an invoice
+    number on more than one row, which csv_handler normalises into two invoice
+    records with the same invoice_id. A plain INSERT would then fail on the
+    invoice_id primary key (the original bug, a 500 on the second upload). So we
+    upsert (ON CONFLICT DO UPDATE): a repeated id updates the row instead of
+    raising. We use individual execute() calls rather than executescript() so
+    everything stays in one transaction that the connection context manager
+    commits on success / rolls back on error.
     """
     now = datetime.now().isoformat()
     with get_conn() as conn:
@@ -563,6 +568,14 @@ def replace_dataset(customers: list, invoices: list):
                      contact_email, payment_terms_days, credit_limit,
                      first_seen, last_updated)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(customer_id) DO UPDATE SET
+                    company_name       = excluded.company_name,
+                    customer_type      = excluded.customer_type,
+                    contact_name       = excluded.contact_name,
+                    contact_email      = excluded.contact_email,
+                    payment_terms_days = excluded.payment_terms_days,
+                    credit_limit       = excluded.credit_limit,
+                    last_updated       = excluded.last_updated
             """, (
                 c["customer_id"],
                 c.get("company_name") or c.get("name", ""),
@@ -581,6 +594,14 @@ def replace_dataset(customers: list, invoices: list):
                     (invoice_id, customer_id, issue_date, due_date,
                      amount, status, paid_date, last_updated)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(invoice_id) DO UPDATE SET
+                    customer_id  = excluded.customer_id,
+                    issue_date   = excluded.issue_date,
+                    due_date     = excluded.due_date,
+                    amount       = excluded.amount,
+                    status       = excluded.status,
+                    paid_date    = excluded.paid_date,
+                    last_updated = excluded.last_updated
             """, (
                 inv["invoice_id"],
                 inv["customer_id"],

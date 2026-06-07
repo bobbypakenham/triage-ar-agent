@@ -672,6 +672,27 @@ def test_replace_dataset_rolls_back_on_failure(db):
     assert survivors[0]["customer_id"] == "OLD"   # previous data preserved
 
 
+def test_replace_dataset_handles_duplicate_invoice_ids(db):
+    """A batch that repeats an invoice number (e.g. an aged-debtors CSV listing
+    the invoice on more than one row) must upsert rather than fail on the
+    invoice_id primary key. Regression: a 500 on the second CSV upload."""
+    customers = [{"customer_id": "C1", "company_name": "Acme",
+                  "payment_terms_days": 30}]
+    invoices = [
+        {"invoice_id": "INV-1", "customer_id": "C1", "issue_date": "2026-02-01",
+         "due_date": "2026-03-03", "amount": 100.0, "status": "open"},
+        # Same invoice_id again with a different amount -> update, don't raise.
+        {"invoice_id": "INV-1", "customer_id": "C1", "issue_date": "2026-02-01",
+         "due_date": "2026-03-03", "amount": 175.0, "status": "open"},
+    ]
+
+    db.replace_dataset(customers=customers, invoices=invoices)  # must not raise
+
+    rows = db.get_all_invoices("C1")
+    assert len(rows) == 1                # deduped to a single row
+    assert rows[0]["amount"] == 175.0    # last write wins
+
+
 # ─────────────────────────────────────────────────────────────────────
 # orchestrator._agent_error — per-customer failure fallback
 # ─────────────────────────────────────────────────────────────────────
