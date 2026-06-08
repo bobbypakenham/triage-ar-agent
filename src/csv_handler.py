@@ -36,7 +36,12 @@ FIELD_PATTERNS = {
     "contact_name":  ["contact name", "contact person"],
     "payment_terms": ["payment terms", "terms", "net days", "net"],
     "status":        ["payment status", "invoice status", "status"],
-    "paid_date":     ["date paid", "paid date", "settled date", "payment received"],
+    "paid_date":     [
+        "date paid", "paid date", "settled date", "payment received",
+        # Underscore variants common in accounting-software exports.
+        "paid_date", "payment_date", "date_paid", "settled_date",
+        "payment_received",
+    ],
 }
 
 REQUIRED_FIELDS = ["customer_name", "invoice_id", "amount", "issue_date", "due_date"]
