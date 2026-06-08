@@ -35,6 +35,8 @@ FIELD_PATTERNS = {
     "contact_email": ["contact email", "e-mail", "email"],
     "contact_name":  ["contact name", "contact person"],
     "payment_terms": ["payment terms", "terms", "net days", "net"],
+    "status":        ["payment status", "invoice status", "status"],
+    "paid_date":     ["date paid", "paid date", "settled date", "payment received"],
 }
 
 REQUIRED_FIELDS = ["customer_name", "invoice_id", "amount", "issue_date", "due_date"]
@@ -105,6 +107,21 @@ def _parse_amount(value) -> Optional[float]:
         return None
 
 
+def _normalise_status(value) -> str:
+    """Map a free-text status cell to one of: paid / partial / overdue / open.
+    Anything blank or unrecognised is treated as an outstanding 'open' invoice."""
+    s = str(value).strip().lower()
+    if s in ("", "nan", "none") or "unpaid" in s:
+        return "open"
+    if "partial" in s or "part" in s:
+        return "partial"
+    if "paid" in s or "settled" in s or "cleared" in s or "complete" in s:
+        return "paid"
+    if "overdue" in s or "past due" in s:
+        return "overdue"
+    return "open"
+
+
 def normalise(df: pd.DataFrame, mapping: dict) -> tuple:
     today_str = date.today().isoformat()
     customers = {}
@@ -167,14 +184,29 @@ def normalise(df: pd.DataFrame, mapping: dict) -> tuple:
 
         customer_id = customers[raw_name]["customer_id"]
 
+        # Status / paid-date columns are optional. Import them when present so a
+        # ledger that already records paid invoices keeps that payment history —
+        # the stats and agent layers need paid invoices to judge a customer.
+        status = "open"
+        if mapping.get("status"):
+            status = _normalise_status(row[mapping["status"]])
+
+        paid_date = None
+        if mapping.get("paid_date"):
+            paid_date = _parse_date(row[mapping["paid_date"]])
+        # A paid/partial invoice must carry a payment date so days-to-pay can be
+        # computed; fall back to the due date when the CSV did not supply one.
+        if status in ("paid", "partial") and not paid_date:
+            paid_date = due_date
+
         invoices.append({
             "invoice_id":  raw_inv_id,
             "customer_id": customer_id,
             "issue_date":  issue_date,
             "due_date":    due_date,
             "amount":      amount,
-            "status":      "open",
-            "paid_date":   None,
+            "status":      status,
+            "paid_date":   paid_date,
         })
 
     return list(customers.values()), invoices, skipped
@@ -182,13 +214,16 @@ def normalise(df: pd.DataFrame, mapping: dict) -> tuple:
 
 def summary_stats(customers: list, invoices: list) -> dict:
     today = date.today().isoformat()
+    # Paid invoices are neither outstanding nor overdue — exclude them from the
+    # money totals (they are still counted in total_invoices).
+    outstanding = [inv for inv in invoices if inv.get("status") != "paid"]
     total_overdue = sum(
-        inv["amount"] for inv in invoices
+        inv["amount"] for inv in outstanding
         if inv.get("due_date") and inv["due_date"] < today
     )
     return {
         "total_customers":   len(customers),
         "total_invoices":    len(invoices),
-        "total_outstanding": sum(inv["amount"] for inv in invoices),
+        "total_outstanding": sum(inv["amount"] for inv in outstanding),
         "total_overdue":     total_overdue,
     }

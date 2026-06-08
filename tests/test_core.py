@@ -110,6 +110,35 @@ def test_csv_normalise(sample_csv):
     assert all(inv["status"] == "open" for inv in invoices)
 
 
+def test_csv_normalise_imports_paid_status(tmp_path):
+    """Status / Paid Date columns are imported, so a ledger that already records
+    paid invoices keeps that payment history on upload (not all marked 'open')."""
+    p = tmp_path / "paid_ledger.csv"
+    p.write_text(
+        "Customer Name,Invoice Number,Amount Due,Invoice Date,Due Date,Status,Paid Date\n"
+        "Reliable Payer,INV-1,1000,2025-09-01,2025-10-01,Paid,2025-09-28\n"
+        "Reliable Payer,INV-2,800,2025-11-01,2025-12-01,Paid,\n"   # paid, no date
+        "Reliable Payer,INV-3,1500,2026-04-01,2026-05-01,Open,\n",
+        encoding="utf-8",
+    )
+    df = csv_handler.load_csv(p)
+    mapping = csv_handler.auto_detect_columns(df)
+    assert mapping["status"] == "Status"
+    assert mapping["paid_date"] == "Paid Date"
+
+    _customers, invoices, _ = csv_handler.normalise(df, mapping)
+    by_id = {i["invoice_id"]: i for i in invoices}
+
+    assert by_id["INV-1"]["status"] == "paid"
+    assert by_id["INV-1"]["paid_date"] == "2025-09-28"
+    # Paid but no date supplied -> falls back to the due date so days-to-pay works.
+    assert by_id["INV-2"]["status"] == "paid"
+    assert by_id["INV-2"]["paid_date"] == "2025-12-01"
+    # Outstanding invoice stays open with no paid date.
+    assert by_id["INV-3"]["status"] == "open"
+    assert by_id["INV-3"]["paid_date"] is None
+
+
 def test_summary_stats(sample_csv):
     df = csv_handler.load_csv(sample_csv)
     customers, invoices, _ = csv_handler.normalise(df, EXPLICIT_MAPPING)
