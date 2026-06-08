@@ -345,19 +345,20 @@ def test_compute_payment_stats_slipping_customer():
 
     days_late = [-2, -1, 0, 5, 10, 15]
       avg_days_late      = mean([-2,-1,0,5,10,15])          = 4.5
-      reliability_score  = 3 on-time (<=0 late) / 6          = 0.5
+      reliability_score  = consistency = 1/(1 + MAD/7); MAD of days_late
+                           = 4  ->  1/(1 + 4/7) = 0.64 (full payer, so x1.0)
       days_to_pay        = [28,29,30,35,40,45] (Net 30)
       trend              = recent [35,40,45] avg 40 vs hist
                            [28,29,30] avg 29 (std 1) -> deteriorating
-      classification     = avg_days_late in (1,15], reliability < 0.9,
-                           variance not erratic -> 'slightly_late'
+      classification     = consistent (MAD 4 <= 7), predictably 1-15 days
+                           late, no single recent outlier -> 'slightly_late'
     """
     history = _build_history([-2, -1, 0, 5, 10, 15])
     result = stats.compute_payment_stats(history)
 
     assert result["total_invoices_paid"] == 6
     assert result["avg_days_late"] == 4.5
-    assert result["reliability_score"] == 0.5
+    assert result["reliability_score"] == 0.64
     assert result["trend"] == "deteriorating"
     assert result["behavior_classification"] == "slightly_late"
 
@@ -375,13 +376,45 @@ def test_compute_payment_stats_reliable_customer():
 
 
 def test_compute_payment_stats_high_risk_customer():
-    """Chronically very overdue (avg_days_late > 30) -> 'high_risk'."""
+    """Chronically very overdue (avg_days_late > 30) -> 'high_risk'.
+
+    They are *predictably* very late (tight spread), so reliability is moderate
+    rather than zero — reliability measures consistency, not punctuality — but
+    the severe average lateness is what drives the high_risk label.
+    """
     history = _build_history([35, 40, 38, 45, 42, 50])
     result = stats.compute_payment_stats(history)
 
-    assert result["reliability_score"] == 0.0     # never on time
+    assert result["reliability_score"] == 0.67    # consistent, just very late
     assert result["avg_days_late"] == pytest.approx(41.7, abs=0.05)
     assert result["behavior_classification"] == "high_risk"
+
+
+def test_reliability_rewards_consistency_not_punctuality():
+    """A customer who ALWAYS pays exactly 5 days late is predictable, so they
+    score as more reliable than one who pays randomly (sometimes on time,
+    sometimes two months late) — even though neither is ever 'on time'."""
+    consistent_late = stats.compute_payment_stats(_build_history([5, 5, 5, 5, 5, 5]))
+    random_payer = stats.compute_payment_stats(_build_history([0, 55, 3, 60, 2, 58]))
+
+    # Consistency, not punctuality, is the signal: always-5-late is near-perfect.
+    assert consistent_late["reliability_score"] == 1.0
+    assert consistent_late["reliability_score"] > random_payer["reliability_score"]
+    # Predictably-late is NOT erratic; the unpredictable one is.
+    assert consistent_late["behavior_classification"] == "slightly_late"
+    assert random_payer["behavior_classification"] == "erratic"
+
+
+def test_single_recent_outlier_is_reliable_with_deviation_not_erratic():
+    """4 invoices paid 4, 2, 3 then 35 days late: the first three are tightly
+    consistent and the 35 is a single recent outlier. The robust spread (MAD)
+    ignores the outlier, so this reads as 'reliable with one recent deviation'
+    (deteriorating_reliable), NOT erratic with a reliability of zero."""
+    result = stats.compute_payment_stats(_build_history([4, 2, 3, 35]))
+
+    assert result["reliability_score"] >= 0.8          # outlier barely moves it
+    assert result["behavior_classification"] == "deteriorating_reliable"
+    assert result["behavior_classification"] != "erratic"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -397,8 +430,9 @@ def _partial_invoice(issue, due, paid, *, inv_id, amount=1000.0, amount_paid=600
 
 
 def test_partial_payment_counts_as_partial_reliability_credit():
-    """An on-time partial payment earns credit equal to the proportion paid
-    (amount_paid / amount), not a flat 1.0."""
+    """A habitual partial payer's reliability is damped by completeness: even
+    with perfectly consistent, on-time timing (consistency 1.0), paying only
+    60% of each bill scales the score to 0.6 rather than a full 1.0."""
     base = date(2025, 1, 1)
     invoices = []
     for i in range(5):
@@ -412,7 +446,7 @@ def test_partial_payment_counts_as_partial_reliability_credit():
 
     result = stats.compute_payment_stats(invoices)
 
-    # On time, but only 60% paid -> 0.6 credit each, not 1.0.
+    # Consistent + on time (consistency 1.0) x 60% completeness -> 0.6, not 1.0.
     assert result["reliability_score"] == 0.6
     assert result["behavior_classification"] != "reliable"
 
@@ -457,8 +491,8 @@ def test_only_partial_payments_never_classified_reliable():
 
     result = stats.compute_payment_stats(invoices)
 
-    # 90% on-time credit would read as 'reliable' for full payments; only-partial
-    # demotes it.
+    # Consistent + on time (consistency 1.0) x 90% completeness -> 0.9; a full
+    # payer with this timing would read 'reliable', but only-partial demotes it.
     assert result["reliability_score"] == 0.9
     assert result["behavior_classification"] != "reliable"
     assert result["behavior_classification"] == "slow_but_consistent"

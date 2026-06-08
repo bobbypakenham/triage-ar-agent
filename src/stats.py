@@ -54,24 +54,75 @@ def compute_days_to_pay(paid_invoices):
     ]
 
 
+# A customer is treated as paying "consistently" when the robust spread of
+# their days-late stays within this many days. ~a week of jitter is normal and
+# harmless; beyond it the timing is genuinely unpredictable.
+CONSISTENT_SPREAD_DAYS = 7.0
+
+
+def _days_late_list(paid_invoices):
+    """Days past the due date for each payment (negative = paid early)."""
+    return [
+        _days_between(inv["due_date"], inv["paid_date"])
+        for inv in paid_invoices
+    ]
+
+
+def _mad(values):
+    """Median absolute deviation — a spread measure that, unlike the standard
+    deviation, is barely moved by a single outlier. A customer who pays 4, 2, 3
+    then 35 days late has a tiny MAD (the 35 is ignored) but a large stdev."""
+    if len(values) < 2:
+        return 0.0
+    m = median(values)
+    return median([abs(v - m) for v in values])
+
+
+def _completeness(paid_invoices):
+    """Average proportion of each bill actually paid (1.0 = always paid in full,
+    lower for habitual partial payers)."""
+    if not paid_invoices:
+        return 0.0
+    return mean(_payment_weight(inv) for inv in paid_invoices)
+
+
+def _has_recent_deviation(days_late):
+    """True when an otherwise-tight, not-habitually-late history has a single
+    most-recent payment that lands far outside the customer's normal range —
+    i.e. a reliable customer with one recent deviation, NOT a genuinely erratic
+    one. Distinguished from erratic by looking at the spread of the *earlier*
+    payments: those must have been consistent and roughly on time."""
+    if len(days_late) < 4:
+        return False
+    recent, earlier = days_late[-1], days_late[:-1]
+    if _mad(earlier) > CONSISTENT_SPREAD_DAYS:   # bulk was never consistent
+        return False
+    if mean(earlier) > 15:                       # bulk was already habitually late
+        return False
+    return abs(recent - median(earlier)) > max(15, 5 * _mad(earlier))
+
+
 def compute_reliability_score(paid_invoices):
     """
-    Reliability: how much of the customer's billing they pay on or before the
-    due date, as a fraction in [0, 1]. A fully paid on-time invoice earns full
-    credit (1.0); a partial on-time payment earns partial credit equal to the
-    proportion paid (amount_paid / amount) rather than a flat 0 or 1. The
-    denominator is the invoice count, so a customer who only ever pays part of
-    each bill can never reach a perfect score.
+    Reliability = how *predictable* a customer's payment timing is, in [0, 1].
+
+    The primary signal is the consistency of their days-late: a low robust
+    spread (MAD) means they pay on a dependable rhythm — and that is what makes
+    them reliable, whether they pay early, on time, or habitually a few days
+    late. A customer who always pays 5 days late is MORE reliable than one who
+    pays anywhere from on-time to two months late, and this score reflects that.
+    A single one-off outlier barely moves it (MAD is outlier-resistant).
+
+    The consistency is then damped by completeness: a customer who only ever
+    pays part of each bill cannot be fully reliable however punctual the part
+    payments are, so the score is scaled by the average proportion paid.
     """
     if not paid_invoices:
         return 0.0
 
-    on_time_credit = sum(
-        _payment_weight(inv)
-        for inv in paid_invoices
-        if _days_between(inv["due_date"], inv["paid_date"]) <= 0
-    )
-    return on_time_credit / len(paid_invoices)
+    spread = _mad(_days_late_list(paid_invoices))
+    consistency = 1.0 / (1.0 + spread / CONSISTENT_SPREAD_DAYS)
+    return consistency * _completeness(paid_invoices)
 
 
 def compute_avg_days_to_pay(paid_invoices):
@@ -136,52 +187,50 @@ def compute_trend(days_to_pay_list, recent_window=3):
         return "improving"
 
 
-def classify_behavior(paid_invoices_count, reliability, std_dev_days, trend, avg_days_late):
+def classify_behavior(paid_invoices_count, reliability, spread, trend, avg_days_late, recent_deviation):
     """
     Produce a single human-readable label for the customer's payment behavior.
     The agent uses this as a shortcut but can still see the raw stats.
 
-    Lateness severity is judged by avg_days_late (how many days past the due
-    date they typically pay), NOT by reliability alone. This distinguishes a
-    customer who is reliably a few days late (fine) from one who is chronically
-    very overdue (a real concern).
+    Consistency (the robust spread of days-late) is the primary signal. A
+    customer who pays predictably — even predictably late — is reliable or
+    slow-but-consistent, NOT erratic. "Erratic" is reserved for genuinely high
+    variance (sometimes on time, sometimes very overdue, unpredictable), where
+    the deviation signal can't be trusted. Lateness *severity* (avg_days_late)
+    then sets the label for the predictable payers.
     """
     if paid_invoices_count < 3:
         return "insufficient_data"
 
-    # Severe lateness is the strongest concern signal — gate on how late, not
-    # merely whether they were ever late.
-    if avg_days_late > 30:
-        return "high_risk"
+    consistent = spread <= CONSISTENT_SPREAD_DAYS
 
-    # High variance is only a concern if it actually causes missed due dates.
-    # A customer who pays anywhere from day 25-50 on Net 60 has high variance
-    # but is never late — that's harmless, not erratic.
-    if std_dev_days > 15 and reliability < 0.8:
+    # Genuinely unpredictable timing. This is the ONLY thing that earns
+    # "erratic" — not a single one-off outlier, and not simply paying late on a
+    # dependable rhythm. (A robust spread is used, so one stray invoice does not
+    # tip a consistent payer over into erratic.)
+    if not consistent:
         return "erratic"
 
-    # Was reliable, now slipping — the early-warning case worth catching.
+    # --- consistent / predictable payers below ---
+
+    # An otherwise-tight, on-time-ish history with one recent outlier: reliable
+    # with a single recent deviation, the early-warning case worth catching.
+    if recent_deviation:
+        return "deteriorating_reliable"
+
+    # A highly consistent customer that is nonetheless trending slower.
     if reliability >= 0.9 and trend == "deteriorating":
         return "deteriorating_reliable"
 
-    # Pays on time. High reliability proves any timing variance is harmless,
-    # so we don't require low variance here.
-    if reliability >= 0.9:
-        return "reliable"
-
-    # Moderately late: typically 15-30 days past due. Worth watching/chasing.
+    # Severity ladder for predictable payers. Because the timing is consistent,
+    # these labels describe a dependable-but-late rhythm, not volatility.
+    if avg_days_late > 30:
+        return "high_risk"          # predictably very overdue — a real concern
     if avg_days_late > 15:
-        return "moderately_late"
-
-    # Slightly late: typically 1-15 days past due. Slow but not a worry.
+        return "moderately_late"    # predictably 15-30 days late — worth chasing
     if avg_days_late > 1:
-        return "slightly_late"
-
-    # On time or early, but with some inconsistency.
-    if 0.6 <= reliability < 0.9:
-        return "slow_but_consistent"
-
-    return "mixed"
+        return "slightly_late"      # predictably a few days late — low concern
+    return "reliable"               # consistent and on time or early
 
 def compute_payment_stats(paid_invoices, current_open_invoice=None):
     """
@@ -209,8 +258,16 @@ def compute_payment_stats(paid_invoices, current_open_invoice=None):
     reliability = compute_reliability_score(paid_invoices)
     trend = compute_trend(days_to_pay)
     avg_days_late = compute_avg_days_late(paid_invoices)
+
+    # Classification keys off the *robust* spread of days-late (MAD), so a single
+    # outlier does not read as volatility, plus a flag for an otherwise-tight
+    # history with one recent deviation.
+    days_late = _days_late_list(paid_invoices)
+    spread_days_late = _mad(days_late)
+    recent_deviation = _has_recent_deviation(days_late)
     classification = classify_behavior(
-        len(paid_invoices), reliability, std_dtp, trend, avg_days_late
+        len(paid_invoices), reliability, spread_days_late, trend,
+        avg_days_late, recent_deviation,
     )
 
     # A customer who has only ever made partial payments — never clearing a

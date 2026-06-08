@@ -81,7 +81,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "get_payment_stats",
-        "description": "Returns pre-computed payment behavior statistics: total_invoices_paid, avg_days_to_pay, median_days_to_pay, std_dev_days_to_pay, recent_avg_days_to_pay (last 3 invoices), drift_days (recent vs lifetime average), trend (improving/stable/deteriorating), reliability_score (0-1, fraction paid on time), avg_days_late (avg days past due, negative=early), behavior_classification (reliable/deteriorating_reliable/slightly_late/moderately_late/high_risk/erratic/slow_but_consistent/mixed/insufficient_data), recent_paid_invoices (last 60 days), and if open invoices exist: current_days_outstanding and current_deviation_sigmas (only present when meaningful).",
+        "description": "Returns pre-computed payment behavior statistics: total_invoices_paid, avg_days_to_pay, median_days_to_pay, std_dev_days_to_pay, recent_avg_days_to_pay (last 3 invoices), drift_days (recent vs lifetime average), trend (improving/stable/deteriorating), reliability_score (0-1, how predictable/consistent their payment timing is: high = a dependable rhythm even if habitually a few days late, low = erratic/unpredictable; damped down for partial-only payers), avg_days_late (avg days past due, negative=early), behavior_classification (reliable/deteriorating_reliable/slightly_late/moderately_late/high_risk/erratic/slow_but_consistent/mixed/insufficient_data), recent_paid_invoices (last 60 days), and if open invoices exist: current_days_outstanding and current_deviation_sigmas (only present when meaningful).",
         "input_schema": {
             "type": "object",
             "properties": {

@@ -51,7 +51,7 @@ RED (escalate to human) — ONLY when at least one of these is true:
 - A single invoice is 90+ days overdue with no payment received, OR
 - Multiple invoices are overdue AND prior reminders to this customer have gone unanswered (a clear pattern of being ignored), OR
 - The customer's outstanding balance exceeds their credit limit, OR
-- The customer HAS a payment history and their reliability is very low — a chronic non-payer (behavior_classification "high_risk" with a low reliability_score).
+- The customer HAS a real payment history and is a chronic late-payer — behavior_classification "high_risk" (predictably averages 30+ days past due), which only an actual history of paid invoices can establish.
 
 AMBER (send a reminder) — when:
 - It is the customer's first invoice / they have insufficient payment history and the invoice is roughly 30-90 days overdue: send a Tier 1 reminder and gather data. This is the common case for a freshly-uploaded ledger. NO HISTORY IS NOT A RED FLAG — it is the absence of evidence, not evidence of a problem, so it is AMBER, never RED.
@@ -173,11 +173,11 @@ Set recommended_action to "escalate_to_human" ONLY if at least one of these is t
 - A single invoice is 90+ days overdue with no payment received.
 - Multiple invoices are overdue AND prior reminders to this customer have gone unanswered (a clear pattern of being ignored).
 - The customer's outstanding balance exceeds their credit limit.
-- The customer HAS a payment history and their reliability is very low — a chronic non-payer (behavior_classification "high_risk" with a low reliability_score).
+- The customer HAS a real payment history and is a chronic late-payer — behavior_classification "high_risk" (predictably averages 30+ days past due), which only an actual history of paid invoices can establish.
 
 These are the ONLY escalation triggers. They are all evidence of bad behaviour. Do NOT escalate for any other reason — in particular, do NOT escalate merely because a balance is large, or because you "cannot confidently determine the right tier." A large but ordinary overdue invoice is still a Tier 1/Tier 2 reminder, not an escalation.
 
-Insufficient payment history is NOT, by itself, an escalation trigger. A customer with no history (behavior_classification "insufficient_data") whose first invoice is overdue — even 30-90 days overdue — should receive a Tier 1 reminder, not an escalation. Escalate such a customer only when one of the four triggers above is genuinely met (90+ days, repeatedly-ignored reminders, credit limit exceeded, or a low reliability score that requires actual payment history to exist).
+Insufficient payment history is NOT, by itself, an escalation trigger. A customer with no history (behavior_classification "insufficient_data") whose first invoice is overdue — even 30-90 days overdue — should receive a Tier 1 reminder, not an escalation. Escalate such a customer only when one of the four triggers above is genuinely met (90+ days, repeatedly-ignored reminders, credit limit exceeded, or a "high_risk" classification that requires actual payment history to exist).
 
 Uncertainty is not a trigger. If you cannot read a customer because you simply lack history, that points to a Tier 1 reminder (AMBER), never to escalation. Escalation is for proven problems, not unknowns.
 
