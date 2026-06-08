@@ -17,9 +17,12 @@ Run from the repo root (so the relative data/triage.db path resolves):
     TRIAGE_API_SECRET=... uvicorn api.main:app --reload
 """
 
+import base64
+import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 
+import anthropic
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -463,6 +466,254 @@ async def upload_csv(file: UploadFile = File(...)):
         "mapping": mapping,
         "skipped_rows": skipped,
         "summary": csv_handler.summary_stats(customers, invoices),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# PDF invoice upload — extract with Claude vision, confirm, then store
+#
+# For pilots (e.g. DATEV users) who can only export individual invoice PDFs,
+# not an aged-debtors CSV. /pdf extracts fields for the user to confirm/edit;
+# /pdf/confirm writes the confirmed invoice through the SAME merge/upsert path
+# as the CSV upload (replace_dataset preserves existing data and paid history).
+#
+# anthropic is safe to import at module top — unlike the agent chain it does
+# NOT read st.secrets / run load_dotenv() at import (handover rule #1). The
+# client reads ANTHROPIC_API_KEY from the env load_dotenv() set up above.
+# ─────────────────────────────────────────────────────────────────────
+
+PDF_EXTRACTION_MODEL = "claude-sonnet-4-20250514"
+
+# A tool schema forces Claude to return structured JSON rather than prose we
+# would have to parse out of markdown. Every field is optional — anything the
+# model can't find on the invoice is simply omitted and left blank for the user.
+_EXTRACTION_TOOL = {
+    "name": "record_invoice",
+    "description": "Record the fields extracted from a single invoice PDF.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_name": {
+                "type": "string",
+                "description": "The customer being billed (the bill-to / recipient), "
+                "NOT the sender/vendor issuing the invoice.",
+            },
+            "invoice_number": {"type": "string", "description": "Invoice number or reference."},
+            "invoice_date": {"type": "string", "description": "Invoice/issue date as YYYY-MM-DD."},
+            "due_date": {"type": "string", "description": "Payment due date as YYYY-MM-DD."},
+            "amount": {
+                "type": "number",
+                "description": "Total amount due, numeric only — no currency symbol or "
+                "thousands separators.",
+            },
+            "currency": {"type": "string", "description": "ISO currency code, e.g. EUR, GBP, USD."},
+            "contact_email": {"type": "string", "description": "Billing contact email, if shown."},
+        },
+        "required": [],
+    },
+}
+
+_EXTRACTION_PROMPT = (
+    "This PDF is a single invoice. Extract the billing fields using the "
+    "record_invoice tool. The customer is the party being billed (bill-to / "
+    "recipient), not the company that issued the invoice. Give dates as "
+    "YYYY-MM-DD and the amount as a plain number (the total due, no symbols). "
+    "Omit any field you cannot find on the document rather than guessing."
+)
+
+
+def _extract_invoice_from_pdf(pdf_bytes: bytes) -> dict:
+    """Send the PDF to Claude (vision) and return the raw extracted field dict.
+    Raises on any API/transport failure; the caller maps that to a 422."""
+    client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
+    b64 = base64.standard_b64encode(pdf_bytes).decode()
+    message = client.messages.create(
+        model=PDF_EXTRACTION_MODEL,
+        max_tokens=1024,
+        tools=[_EXTRACTION_TOOL],
+        tool_choice={"type": "tool", "name": "record_invoice"},
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": b64,
+                        },
+                    },
+                    {"type": "text", "text": _EXTRACTION_PROMPT},
+                ],
+            }
+        ],
+    )
+    for block in message.content:
+        if block.type == "tool_use" and block.name == "record_invoice":
+            return block.input or {}
+    return {}
+
+
+def _clean_str(value) -> str | None:
+    if value is None:
+        return None
+    s = str(value).strip()
+    return s or None
+
+
+def _status_and_days_overdue(due_date: str | None) -> tuple[str, int]:
+    """Default status from the due date: overdue (with a positive day count) if
+    it is in the past, otherwise open."""
+    if not due_date:
+        return "open", 0
+    try:
+        due = datetime.strptime(due_date, "%Y-%m-%d").date()
+    except ValueError:
+        return "open", 0
+    days = (date.today() - due).days
+    return ("overdue", days) if days > 0 else ("open", 0)
+
+
+@app.post("/api/upload/pdf", tags=["write"], dependencies=[Depends(require_api_key)])
+async def upload_pdf(file: UploadFile = File(...)):
+    """Extract invoice fields from an uploaded PDF for the user to confirm. Does
+    NOT touch the database — the frontend shows these in an editable form and
+    posts the confirmed values to /api/upload/pdf/confirm."""
+    is_pdf = (file.content_type == "application/pdf") or (
+        file.filename or ""
+    ).lower().endswith(".pdf")
+    if not is_pdf:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please upload a PDF file.",
+        )
+
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded PDF is empty.",
+        )
+
+    try:
+        raw = _extract_invoice_from_pdf(pdf_bytes)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not extract invoice data. Please check the PDF and try again.",
+        )
+
+    # Normalise dates/amount through the same parsers the CSV path uses, so the
+    # confirmation form is pre-filled with clean, consistent values.
+    invoice_date = csv_handler._parse_date(raw["invoice_date"]) if raw.get("invoice_date") else None
+    due_date = csv_handler._parse_date(raw["due_date"]) if raw.get("due_date") else None
+    amount = csv_handler._parse_amount(raw["amount"]) if raw.get("amount") is not None else None
+    status_value, days_overdue = _status_and_days_overdue(due_date)
+
+    return {
+        "customer_name": _clean_str(raw.get("customer_name")),
+        "invoice_number": _clean_str(raw.get("invoice_number")),
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "currency": (_clean_str(raw.get("currency")) or "EUR").upper(),
+        "contact_email": _clean_str(raw.get("contact_email")),
+        "status": status_value,
+        "days_overdue": days_overdue,
+    }
+
+
+class PdfInvoiceBody(BaseModel):
+    customer_name: str
+    invoice_number: str | None = None
+    invoice_date: str
+    due_date: str
+    amount: float
+    currency: str | None = None
+    contact_email: str | None = None
+    status: str | None = None  # overdue / open / paid; defaults from due_date
+
+
+@app.post(
+    "/api/upload/pdf/confirm",
+    tags=["write"],
+    dependencies=[Depends(require_api_key)],
+)
+def confirm_pdf(body: PdfInvoiceBody):
+    """Persist a confirmed/edited PDF invoice via the same merge/upsert path as
+    the CSV upload: reconciles the customer by name against existing ones,
+    upserts the invoice, and never downgrades paid history. Returns the same
+    response shape as /api/upload."""
+    name = (body.customer_name or "").strip()
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Customer name is required.",
+        )
+
+    issue_date = csv_handler._parse_date(body.invoice_date)
+    due_date = csv_handler._parse_date(body.due_date)
+    if not issue_date or not due_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Valid invoice and due dates are required (YYYY-MM-DD).",
+        )
+
+    amount = csv_handler._parse_amount(body.amount)
+    if amount is None or amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A positive invoice amount is required.",
+        )
+
+    invoice_id = (body.invoice_number or "").strip() or f"INV-{str(uuid.uuid4())[:8].upper()}"
+
+    allowed = {"open", "overdue", "paid", "partial"}
+    status_value = (body.status or "").strip().lower()
+    if status_value not in allowed:
+        status_value, _ = _status_and_days_overdue(due_date)
+    # A paid/partial invoice must carry a payment date so days-to-pay is
+    # computable downstream; fall back to the due date (mirrors csv_handler).
+    paid_date = due_date if status_value in ("paid", "partial") else None
+
+    try:
+        terms_days = max(
+            0,
+            (
+                datetime.strptime(due_date, "%Y-%m-%d").date()
+                - datetime.strptime(issue_date, "%Y-%m-%d").date()
+            ).days,
+        )
+    except ValueError:
+        terms_days = 30
+
+    customer = {
+        "customer_id": "C001",  # positional; replace_dataset reconciles by name
+        "customer_type": "business",
+        "company_name": name,
+        "contact_name": None,
+        "contact_email": _clean_str(body.contact_email),
+        "account_opened": _today_str(),
+        "payment_terms_days": terms_days,
+        "credit_limit": None,
+    }
+    invoice = {
+        "invoice_id": invoice_id,
+        "customer_id": "C001",
+        "issue_date": issue_date,
+        "due_date": due_date,
+        "amount": round(amount, 2),
+        "status": status_value,
+        "paid_date": paid_date,
+    }
+
+    database.replace_dataset([customer], [invoice])
+    return {
+        "ok": True,
+        "mapping": None,
+        "skipped_rows": 0,
+        "summary": csv_handler.summary_stats([customer], [invoice]),
     }
 
 
