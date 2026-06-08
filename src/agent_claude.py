@@ -67,7 +67,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "get_open_invoices",
-        "description": "Returns a list of all currently open or overdue invoices for a customer. Each invoice includes invoice_id, issue_date, due_date, amount, status, days_outstanding, and days_past_due. Returns empty list if no open invoices.",
+        "description": "Returns a list of all currently open or overdue invoices for a customer. Each invoice includes invoice_id, issue_date, due_date, amount, currency (the ISO code the invoice is denominated in, e.g. EUR/GBP/USD), status, days_outstanding, and days_past_due. Always write amounts using the symbol for that invoice's currency (€ for EUR, £ for GBP, $ for USD); never assume a currency. Returns empty list if no open invoices.",
         "input_schema": {
             "type": "object",
             "properties": {

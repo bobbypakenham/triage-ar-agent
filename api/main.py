@@ -122,6 +122,16 @@ def _display_name(profile: dict) -> str:
     )
 
 
+def _customer_currency(customer_id: str) -> str:
+    """The currency to present a customer's figures in: the currency of their
+    open invoices (the first, since they share a ledger), defaulting to EUR.
+    Drives whether the frontend may rewrite a stray £ to € in agent text."""
+    for inv in database.get_open_invoices(customer_id):
+        if inv.get("currency"):
+            return inv["currency"]
+    return "EUR"
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Read endpoints
 # ─────────────────────────────────────────────────────────────────────
@@ -178,6 +188,7 @@ def _enrich_recommendation(r: dict) -> dict:
         "pattern_noticed": r.get("pattern_noticed"),
         "reasoning": r.get("reasoning"),
         "overdue_value": overdue,
+        "currency": _customer_currency(cid),
         "drafted_email": r.get("drafted_email"),
     }
 
@@ -255,6 +266,7 @@ def list_customers():
                 "outstanding": outstanding,
                 "overdue": overdue,
                 "days_overdue": days_overdue,
+                "currency": _customer_currency(cid),
                 "classification": rec.get("classification") if rec else None,
                 "recommended_action": rec.get("recommended_action") if rec else None,
                 "behavior_classification": behavior,
@@ -704,6 +716,7 @@ def confirm_pdf(body: PdfInvoiceBody):
         "issue_date": issue_date,
         "due_date": due_date,
         "amount": round(amount, 2),
+        "currency": (_clean_str(body.currency) or "EUR").upper(),
         "status": status_value,
         "paid_date": paid_date,
     }

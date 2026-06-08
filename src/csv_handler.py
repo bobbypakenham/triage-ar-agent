@@ -42,6 +42,7 @@ FIELD_PATTERNS = {
         "paid_date", "payment_date", "date_paid", "settled_date",
         "payment_received",
     ],
+    "currency":      ["currency code", "currency", "ccy"],
 }
 
 REQUIRED_FIELDS = ["customer_name", "invoice_id", "amount", "issue_date", "due_date"]
@@ -110,6 +111,27 @@ def _parse_amount(value) -> Optional[float]:
         return round(float(value), 2)
     except ValueError:
         return None
+
+
+_CURRENCY_SYMBOLS = {"€": "EUR", "£": "GBP", "$": "USD"}
+
+
+def _normalise_currency(value) -> Optional[str]:
+    """Map a currency cell to a 3-letter ISO code. Accepts a symbol (€/£/$) or a
+    code (EUR/GBP/USD). Returns None when blank/unrecognised so the database
+    default ('EUR') applies."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return None
+    for sym, code in _CURRENCY_SYMBOLS.items():
+        if sym in s:
+            return code
+    code = s.upper()
+    if len(code) == 3 and code.isalpha():
+        return code
+    return None
 
 
 def _normalise_status(value) -> str:
@@ -204,12 +226,17 @@ def normalise(df: pd.DataFrame, mapping: dict) -> tuple:
         if status in ("paid", "partial") and not paid_date:
             paid_date = due_date
 
+        currency = None
+        if mapping.get("currency"):
+            currency = _normalise_currency(row[mapping["currency"]])
+
         invoices.append({
             "invoice_id":  raw_inv_id,
             "customer_id": customer_id,
             "issue_date":  issue_date,
             "due_date":    due_date,
             "amount":      amount,
+            "currency":    currency,
             "status":      status,
             "paid_date":   paid_date,
         })

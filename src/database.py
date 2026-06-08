@@ -99,6 +99,7 @@ def init_db():
             issue_date          TEXT NOT NULL,
             due_date            TEXT NOT NULL,
             amount              REAL NOT NULL,
+            currency            TEXT NOT NULL DEFAULT 'EUR',
             status              TEXT NOT NULL DEFAULT 'open',
             paid_date           TEXT,
             last_updated        TEXT NOT NULL
@@ -155,6 +156,7 @@ def init_db():
         for stmt in [
             "ALTER TABLE batch_results ADD COLUMN run_time TEXT",
             "ALTER TABLE invoices ADD COLUMN amount_paid REAL",
+            "ALTER TABLE invoices ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR'",
         ]:
             try:
                 conn.execute(stmt)
@@ -253,13 +255,14 @@ def upsert_invoice(invoice: dict):
         conn.execute("""
             INSERT INTO invoices
                 (invoice_id, customer_id, issue_date, due_date,
-                 amount, status, paid_date, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 amount, currency, status, paid_date, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(invoice_id) DO UPDATE SET
                 customer_id  = excluded.customer_id,
                 issue_date   = excluded.issue_date,
                 due_date     = excluded.due_date,
                 amount       = excluded.amount,
+                currency     = excluded.currency,
                 status       = CASE
                                  WHEN invoices.status = 'paid' THEN 'paid'
                                  ELSE excluded.status
@@ -275,6 +278,7 @@ def upsert_invoice(invoice: dict):
             invoice["issue_date"],
             invoice["due_date"],
             invoice["amount"],
+            (invoice.get("currency") or "EUR"),
             status,
             paid_date,
             now,
@@ -299,6 +303,7 @@ def get_open_invoices(customer_id: str) -> list:
             inv = dict(r)
             inv["days_outstanding"] = max(0, int(inv["days_outstanding"] or 0))
             inv["days_past_due"]    = max(0, int(inv["days_past_due"] or 0))
+            inv["currency"]         = inv.get("currency") or "EUR"
             result.append(inv)
         return result
 
@@ -311,7 +316,12 @@ def get_all_invoices(customer_id: str) -> list:
             WHERE customer_id = ?
             ORDER BY issue_date ASC
         """, (customer_id,)).fetchall()
-        return [dict(r) for r in rows]
+        result = []
+        for r in rows:
+            inv = dict(r)
+            inv["currency"] = inv.get("currency") or "EUR"
+            result.append(inv)
+        return result
 
 
 def get_paid_invoices(customer_id: str) -> list:
@@ -643,13 +653,14 @@ def replace_dataset(customers: list, invoices: list):
             conn.execute("""
                 INSERT INTO invoices
                     (invoice_id, customer_id, issue_date, due_date,
-                     amount, status, paid_date, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     amount, currency, status, paid_date, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(invoice_id) DO UPDATE SET
                     customer_id  = excluded.customer_id,
                     issue_date   = excluded.issue_date,
                     due_date     = excluded.due_date,
                     amount       = excluded.amount,
+                    currency     = excluded.currency,
                     status       = CASE
                                      WHEN invoices.status IN ('paid', 'partial')
                                      THEN invoices.status
@@ -667,6 +678,7 @@ def replace_dataset(customers: list, invoices: list):
                 inv["issue_date"],
                 inv["due_date"],
                 inv["amount"],
+                (inv.get("currency") or "EUR"),
                 inv.get("status", "open"),
                 inv.get("paid_date"),
                 now,

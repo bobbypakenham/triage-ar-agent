@@ -794,6 +794,62 @@ def test_replace_dataset_handles_duplicate_invoice_ids(db):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# invoices.currency column
+# ─────────────────────────────────────────────────────────────────────
+
+def test_currency_defaults_to_eur_when_absent(db):
+    """An invoice stored with no currency reads back as EUR (the column default),
+    so existing EUR-only data keeps working unchanged."""
+    db.upsert_customer({"customer_id": "C1", "company_name": "Acme"})
+    db.upsert_invoice({
+        "invoice_id": "INV-1", "customer_id": "C1",
+        "issue_date": "2026-01-01", "due_date": "2026-02-01",
+        "amount": 100.0, "status": "open",
+    })
+    assert db.get_open_invoices("C1")[0]["currency"] == "EUR"
+    assert db.get_all_invoices("C1")[0]["currency"] == "EUR"
+
+
+def test_currency_persisted_and_returned_per_invoice(db):
+    """replace_dataset stores each invoice's currency, and the read paths return
+    it; an invoice with no currency falls back to EUR."""
+    customers = [{"customer_id": "C1", "company_name": "Acme", "payment_terms_days": 30}]
+    invoices = [
+        {"invoice_id": "G-1", "customer_id": "C1", "issue_date": "2026-01-01",
+         "due_date": "2026-02-01", "amount": 100.0, "status": "open", "currency": "GBP"},
+        {"invoice_id": "U-1", "customer_id": "C1", "issue_date": "2026-01-02",
+         "due_date": "2026-02-02", "amount": 200.0, "status": "open", "currency": "USD"},
+        {"invoice_id": "E-1", "customer_id": "C1", "issue_date": "2026-01-03",
+         "due_date": "2026-02-03", "amount": 300.0, "status": "open"},  # no currency
+    ]
+    db.replace_dataset(customers=customers, invoices=invoices)
+
+    by_id = {inv["invoice_id"]: inv["currency"] for inv in db.get_open_invoices("C1")}
+    assert by_id == {"G-1": "GBP", "U-1": "USD", "E-1": "EUR"}
+
+
+def test_csv_imports_currency_column():
+    """csv_handler detects a Currency column and normalises codes and symbols to
+    ISO codes; a blank cell yields None (so the DB default EUR applies)."""
+    import io
+
+    csv_text = (
+        "Customer Name,Invoice Number,Amount Due,Invoice Date,Due Date,Currency\n"
+        "Acme UK,INV-1,1000,2026-01-01,2026-02-01,GBP\n"   # code
+        "Acme UK,INV-2,500,2026-02-01,2026-03-01,£\n"      # symbol
+        "Dollar Co,INV-3,800,2026-01-15,2026-02-15,$\n"    # symbol
+        "Plain Co,INV-4,200,2026-01-20,2026-02-20,\n"      # blank -> None
+    )
+    df = csv_handler.load_csv(io.StringIO(csv_text))
+    mapping = csv_handler.auto_detect_columns(df)
+    assert mapping["currency"] == "Currency"
+
+    _customers, invoices, _ = csv_handler.normalise(df, mapping)
+    by_id = {i["invoice_id"]: i["currency"] for i in invoices}
+    assert by_id == {"INV-1": "GBP", "INV-2": "GBP", "INV-3": "USD", "INV-4": None}
+
+
+# ─────────────────────────────────────────────────────────────────────
 # orchestrator._agent_error — per-customer failure fallback
 # ─────────────────────────────────────────────────────────────────────
 
