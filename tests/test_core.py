@@ -629,8 +629,9 @@ def test_save_batch_result_upserts_same_run_date(db):
 # replace_dataset — atomic CSV import
 # ─────────────────────────────────────────────────────────────────────
 
-def test_replace_dataset_swaps_in_new_data(db):
-    """A successful import wipes the old dataset and installs the new one."""
+def test_replace_dataset_merges_without_dropping_history(db):
+    """An import merges new data on top of the old rather than wiping it: the
+    previous customer and invoice survive, and the new ones are added."""
     db.upsert_customer({"customer_id": "OLD", "company_name": "Old Co"})
     db.upsert_invoice({
         "invoice_id": "OLD-1", "customer_id": "OLD",
@@ -646,11 +647,47 @@ def test_replace_dataset_swaps_in_new_data(db):
                    "amount": 100.0, "status": "open"}],
     )
 
-    customers = db.get_all_customers()
-    assert len(customers) == 1
-    assert customers[0]["customer_id"] == "NEW"
-    assert db.get_customer("OLD") is None        # old data gone
+    # Nothing was wiped: both the old and the new records are present.
+    ids = {c["customer_id"] for c in db.get_all_customers()}
+    assert ids == {"OLD", "NEW"}
+    assert db.get_customer("OLD") is not None
+    assert len(db.get_all_invoices("OLD")) == 1
     assert len(db.get_all_invoices("NEW")) == 1
+
+
+def test_replace_dataset_preserves_paid_history_across_uploads(db):
+    """A returning customer is matched by name (their positional id differs
+    between CSVs), and invoices paid in an earlier upload are kept — so the
+    agent still sees the full payment history on the next upload."""
+    # January: O'Brien Logistics with one invoice, then marked paid.
+    db.replace_dataset(
+        customers=[{"customer_id": "C001", "company_name": "O'Brien Logistics",
+                    "payment_terms_days": 30}],
+        invoices=[{"invoice_id": "INV-2026-0103", "customer_id": "C001",
+                   "issue_date": "2026-01-02", "due_date": "2026-02-01",
+                   "amount": 500.0, "status": "open"}],
+    )
+    db.mark_invoice_paid("INV-2026-0103", "2026-01-20")
+
+    # February: O'Brien returns under a DIFFERENT positional id with a new
+    # overdue invoice; the paid January invoice is no longer listed.
+    db.replace_dataset(
+        customers=[{"customer_id": "C002", "company_name": "O'Brien Logistics",
+                    "payment_terms_days": 30}],
+        invoices=[{"invoice_id": "INV-2026-0207", "customer_id": "C002",
+                   "issue_date": "2026-02-03", "due_date": "2026-03-05",
+                   "amount": 800.0, "status": "open"}],
+    )
+
+    # Exactly one O'Brien (matched by name, not duplicated).
+    obrien = [c for c in db.get_all_customers()
+              if c["company_name"] == "O'Brien Logistics"]
+    assert len(obrien) == 1
+    cid = obrien[0]["customer_id"]
+
+    invoices = {i["invoice_id"]: i for i in db.get_all_invoices(cid)}
+    assert set(invoices) == {"INV-2026-0103", "INV-2026-0207"}
+    assert invoices["INV-2026-0103"]["status"] == "paid"   # payment preserved
 
 
 def test_replace_dataset_rolls_back_on_failure(db):

@@ -535,33 +535,80 @@ def clear_dataset():
         """)
 
 
+def _customer_name_key(company_name=None, contact_name=None, name=None):
+    """A stable identity key for a customer: their display name, lower-cased.
+    csv_handler always sets company_name; contact_name/name are fallbacks."""
+    key = (company_name or contact_name or name or "").strip().lower()
+    return key or None
+
+
 def replace_dataset(customers: list, invoices: list):
-    """Atomically swap in a freshly-imported dataset.
+    """Merge an uploaded dataset into the existing data, preserving history.
 
-    Wipes the existing customers/invoices/communications/batch_results and
-    inserts the new records inside a SINGLE transaction. If anything fails
-    part-way through, the whole operation rolls back and the previous dataset
-    is left intact — rather than the old data being wiped and then only
-    partially replaced (the bug this replaces).
+    A new aged-debtors CSV ADDS new invoices and UPDATES outstanding ones, but
+    must never drop invoices already recorded — above all paid ones, which carry
+    the payment history the agent reasons over (e.g. that O'Brien paid
+    INV-2026-0103 in January). So, unlike the previous version, this does NOT
+    wipe customers/invoices/communications; it upserts on top of them.
 
-    The deletes clear the previous dataset, but the *incoming* batch can still
-    contain the same id twice — e.g. an aged-debtors CSV that lists an invoice
-    number on more than one row, which csv_handler normalises into two invoice
-    records with the same invoice_id. A plain INSERT would then fail on the
-    invoice_id primary key (the original bug, a 500 on the second upload). So we
-    upsert (ON CONFLICT DO UPDATE): a repeated id updates the row instead of
-    raising. We use individual execute() calls rather than executescript() so
-    everything stays in one transaction that the connection context manager
-    commits on success / rolls back on error.
+    csv_handler assigns customer ids positionally within a single CSV (C001,
+    C002, ...), so the same company can get a different id — or collide with a
+    different company's id — in a later upload. We therefore reconcile incoming
+    customers to existing ones BY NAME, reusing the stored id (and allocating a
+    fresh, non-colliding id only for genuinely new customers), and remap each
+    invoice to the reconciled id. A paid or partial invoice is never downgraded
+    back to open. Stale agent results (batch_results) are cleared so the next
+    briefing reflects the merged data.
+
+    Everything runs in one transaction: a mid-import failure rolls the whole
+    thing back, leaving the previous data intact.
     """
     now = datetime.now().isoformat()
     with get_conn() as conn:
+        # Agent recommendations are stale once the data changes; clear them so a
+        # fresh run regenerates the briefing. Payment history lives in invoices
+        # and is preserved.
         conn.execute("DELETE FROM batch_results")
-        conn.execute("DELETE FROM communications")
-        conn.execute("DELETE FROM invoices")
-        conn.execute("DELETE FROM customers")
 
+        # Index existing customers by name and by id.
+        name_to_id = {}
+        used_ids = set()
+        for row in conn.execute(
+            "SELECT customer_id, company_name, contact_name FROM customers"
+        ).fetchall():
+            used_ids.add(row["customer_id"])
+            key = _customer_name_key(row["company_name"], row["contact_name"])
+            if key and key not in name_to_id:
+                name_to_id[key] = row["customer_id"]
+
+        def _alloc_id():
+            n = 1
+            while True:
+                cid = f"C{str(n).zfill(3)}"
+                if cid not in used_ids:
+                    used_ids.add(cid)
+                    return cid
+                n += 1
+
+        # Reconcile incoming customers -> final ids (incoming id -> final id).
+        remap = {}
         for c in customers:
+            incoming_id = c["customer_id"]
+            company = c.get("company_name") or c.get("name", "")
+            key = _customer_name_key(company, c.get("contact_name"))
+            final_id = name_to_id.get(key) if key else None
+            if final_id is None:
+                # Genuinely new customer: keep the incoming id if it's free,
+                # otherwise allocate a fresh non-colliding one.
+                if incoming_id and incoming_id not in used_ids:
+                    final_id = incoming_id
+                    used_ids.add(final_id)
+                else:
+                    final_id = _alloc_id()
+                if key:
+                    name_to_id[key] = final_id
+            remap[incoming_id] = final_id
+
             conn.execute("""
                 INSERT INTO customers
                     (customer_id, company_name, customer_type, contact_name,
@@ -577,8 +624,8 @@ def replace_dataset(customers: list, invoices: list):
                     credit_limit       = excluded.credit_limit,
                     last_updated       = excluded.last_updated
             """, (
-                c["customer_id"],
-                c.get("company_name") or c.get("name", ""),
+                final_id,
+                company,
                 c.get("customer_type", "business"),
                 c.get("contact_name"),
                 c.get("contact_email"),
@@ -588,7 +635,11 @@ def replace_dataset(customers: list, invoices: list):
                 now,
             ))
 
+        # Upsert invoices, remapped to the reconciled customer id. A paid or
+        # partial invoice keeps its status and paid_date — its payment record is
+        # never overwritten by a later "open"/"overdue" row.
         for inv in invoices:
+            final_cust = remap.get(inv["customer_id"], inv["customer_id"])
             conn.execute("""
                 INSERT INTO invoices
                     (invoice_id, customer_id, issue_date, due_date,
@@ -599,12 +650,20 @@ def replace_dataset(customers: list, invoices: list):
                     issue_date   = excluded.issue_date,
                     due_date     = excluded.due_date,
                     amount       = excluded.amount,
-                    status       = excluded.status,
-                    paid_date    = excluded.paid_date,
+                    status       = CASE
+                                     WHEN invoices.status IN ('paid', 'partial')
+                                     THEN invoices.status
+                                     ELSE excluded.status
+                                   END,
+                    paid_date    = CASE
+                                     WHEN invoices.status IN ('paid', 'partial')
+                                     THEN invoices.paid_date
+                                     ELSE excluded.paid_date
+                                   END,
                     last_updated = excluded.last_updated
             """, (
                 inv["invoice_id"],
-                inv["customer_id"],
+                final_cust,
                 inv["issue_date"],
                 inv["due_date"],
                 inv["amount"],
