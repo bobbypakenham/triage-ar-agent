@@ -828,6 +828,49 @@ def test_replace_dataset_handles_duplicate_invoice_ids(db):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# manual communications — method / outcome
+# ─────────────────────────────────────────────────────────────────────
+
+def test_manual_communication_stores_method_and_outcome(db):
+    """A hand-logged call/email keeps its method and outcome so they can be
+    shown back and reasoned over (not just a free-text note)."""
+    db.upsert_customer({"customer_id": "C1", "company_name": "Acme"})
+    db.log_manual_communication(
+        customer_id="C1", date_sent="2026-06-05",
+        note="Spoke to Mary, will pay Friday", customer_responded=True,
+        method="phone", outcome="promised_payment",
+    )
+    comms = db.get_communications("C1")
+    assert len(comms) == 1
+    assert comms[0]["method"] == "phone"
+    assert comms[0]["outcome"] == "promised_payment"
+    assert comms[0]["customer_responded"] is True
+
+
+def test_agent_log_includes_manual_communications_with_method_and_outcome(db):
+    """tools.get_communications_log must surface a manually-logged, customer-level
+    communication (invoice_id is None) WITH its method and outcome — previously
+    it filtered to invoice-scoped reminders only, hiding manual logs entirely."""
+    db.upsert_customer({"customer_id": "C1", "company_name": "Acme"})
+    db.upsert_invoice({
+        "invoice_id": "INV-1", "customer_id": "C1", "issue_date": "2026-05-01",
+        "due_date": "2026-06-01", "amount": 500.0, "status": "open",
+    })
+    db.log_manual_communication(
+        customer_id="C1", date_sent="2026-06-05",
+        note="Promised payment by Friday", customer_responded=True,
+        method="phone", outcome="promised_payment",
+    )
+    log = tools.get_communications_log("C1")
+    assert len(log) == 1
+    entry = log[0]
+    assert entry["invoice_id"] is None         # customer-level, not invoice-scoped
+    assert entry["method"] == "phone"
+    assert entry["outcome"] == "promised_payment"
+    assert entry["customer_responded"] is True
+
+
+# ─────────────────────────────────────────────────────────────────────
 # invoices.currency column
 # ─────────────────────────────────────────────────────────────────────
 

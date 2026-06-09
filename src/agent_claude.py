@@ -95,7 +95,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "get_communications_log",
-        "description": "Returns all prior reminder emails sent to this customer about their currently open invoices, plus comms about invoices paid in the last 60 days. Each entry shows tier (1, 2, or 3), date_sent, whether the customer responded, and any response summary. Returns empty list if no prior comms exist.",
+        "description": "Returns all prior reminder emails sent to this customer about their currently open invoices, plus comms about invoices paid in the last 60 days, plus communications a credit controller logged by hand (calls, emails, letters). Each entry shows tier (1/2/3 for automated reminders, 0 for a manually logged contact), date_sent, method (phone/email/letter/other, for manual logs), outcome (promised_payment/disputed/no_response/paid/other, for manual logs), whether the customer responded, and any response summary or note. Use the method and outcome to reason about prior contact, e.g. 'customer promised payment on 5 June via phone'. Returns empty list if no prior comms exist.",
         "input_schema": {
             "type": "object",
             "properties": {

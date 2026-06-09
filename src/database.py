@@ -112,7 +112,9 @@ def init_db():
             tier                INTEGER NOT NULL,
             date_sent           TEXT NOT NULL,
             customer_responded  INTEGER NOT NULL DEFAULT 0,
-            response_summary    TEXT
+            response_summary    TEXT,
+            method              TEXT,
+            outcome             TEXT
         );
 
         CREATE TABLE IF NOT EXISTS batch_results (
@@ -157,6 +159,8 @@ def init_db():
             "ALTER TABLE batch_results ADD COLUMN run_time TEXT",
             "ALTER TABLE invoices ADD COLUMN amount_paid REAL",
             "ALTER TABLE invoices ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR'",
+            "ALTER TABLE communications ADD COLUMN method TEXT",
+            "ALTER TABLE communications ADD COLUMN outcome TEXT",
         ]:
             try:
                 conn.execute(stmt)
@@ -371,8 +375,8 @@ def add_communication(comm: dict):
         conn.execute("""
             INSERT INTO communications
                 (customer_id, invoice_id, tier, date_sent,
-                 customer_responded, response_summary)
-            VALUES (?, ?, ?, ?, ?, ?)
+                 customer_responded, response_summary, method, outcome)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             comm["customer_id"],
             comm.get("invoice_id"),
@@ -380,16 +384,21 @@ def add_communication(comm: dict):
             comm["date_sent"],
             1 if comm.get("customer_responded") else 0,
             comm.get("response_summary"),
+            comm.get("method"),
+            comm.get("outcome"),
         ))
 
 
 def log_manual_communication(customer_id: str, date_sent: str, note: str,
-                             customer_responded: bool, invoice_id=None):
+                             customer_responded: bool, invoice_id=None,
+                             method=None, outcome=None):
     """Record a communication logged by hand — a phone call made, or a reply
     received outside the system. Stored with tier 0 to distinguish it from the
     automated reminder tiers (1/2/3). Left unlinked to an invoice by default,
     so it stays a free-form note and does not alter the agent's invoice-scoped
-    reminder logic."""
+    reminder logic. method (phone/email/letter/other) and outcome
+    (promised_payment/disputed/no_response/paid/other) are optional context the
+    agent can reason over."""
     add_communication({
         "customer_id":        customer_id,
         "invoice_id":         invoice_id,
@@ -397,6 +406,8 @@ def log_manual_communication(customer_id: str, date_sent: str, note: str,
         "date_sent":          date_sent,
         "customer_responded": customer_responded,
         "response_summary":   note,
+        "method":             method,
+        "outcome":            outcome,
     })
 
 

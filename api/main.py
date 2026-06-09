@@ -425,6 +425,60 @@ def log_communication(body: CommunicationBody):
     return {"ok": True}
 
 
+class ManualCommunicationBody(BaseModel):
+    date: str | None = None  # YYYY-MM-DD; defaults to today
+    method: str | None = None  # phone / email / letter / other
+    notes: str | None = None
+    outcome: str | None = None  # promised_payment / disputed / no_response / paid / other
+
+
+# Outcomes that mean the customer actually engaged — used to set the
+# customer_responded flag the agent's reminder logic reads.
+_RESPONDED_OUTCOMES = {"promised_payment", "disputed", "paid"}
+
+
+@app.get(
+    "/api/customers/{customer_id}/communications",
+    tags=["read"],
+    dependencies=[Depends(require_api_key)],
+)
+def list_customer_communications(customer_id: str):
+    """All communications logged for a customer, most recent first."""
+    if not database.get_customer(customer_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer {customer_id} not found",
+        )
+    comms = database.get_communications(customer_id)
+    comms.sort(key=lambda c: c.get("date_sent") or "", reverse=True)
+    return comms
+
+
+@app.post(
+    "/api/customers/{customer_id}/communications",
+    tags=["write"],
+    dependencies=[Depends(require_api_key)],
+)
+def add_customer_communication(customer_id: str, body: ManualCommunicationBody):
+    """Log a call/email/letter a credit controller had with the customer. Stored
+    as a tier-0 (manual) communication the agent can factor into its next run."""
+    if not database.get_customer(customer_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer {customer_id} not found",
+        )
+    outcome = (body.outcome or "").strip().lower() or None
+    database.log_manual_communication(
+        customer_id=customer_id,
+        date_sent=body.date or _today_str(),
+        note=(body.notes or "").strip(),
+        customer_responded=outcome in _RESPONDED_OUTCOMES,
+        method=(body.method or "").strip().lower() or None,
+        outcome=outcome,
+    )
+    return {"ok": True}
+
+
 class EmailApprovalBody(BaseModel):
     customer_id: str
     run_date: str

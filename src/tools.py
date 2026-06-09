@@ -102,7 +102,9 @@ def get_communications_log(customer_id):
     """
     Return prior reminder emails sent to this customer about their
     currently open invoices, plus comms about invoices paid in the
-    last 60 days.
+    last 60 days, plus communications a credit controller logged by hand
+    (calls/emails/letters), which are customer-level and carry a method and
+    outcome (e.g. "promised payment via phone").
     """
     customer = database.get_customer(customer_id)
     if not customer:
@@ -125,11 +127,16 @@ def get_communications_log(customer_id):
             "invoice_id":          c["invoice_id"],
             "date_sent":           c["date_sent"],
             "tier":                c["tier"],
+            "method":              c.get("method"),
+            "outcome":             c.get("outcome"),
             "customer_responded":  c["customer_responded"],
             "response_summary":    c["response_summary"],
         }
         for c in database.get_communications(customer_id)
-        if c["invoice_id"] in relevant_invoice_ids
+        # Invoice-scoped reminders for the relevant invoices, plus any manually
+        # logged customer-level communication (invoice_id is None), which is
+        # context the agent should weigh regardless of which invoice it concerns.
+        if c["invoice_id"] in relevant_invoice_ids or c["invoice_id"] is None
     ]
 
 
