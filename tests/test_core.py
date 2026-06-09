@@ -139,6 +139,40 @@ def test_csv_normalise_imports_paid_status(tmp_path):
     assert by_id["INV-3"]["paid_date"] is None
 
 
+def test_normalise_status_does_not_read_negated_forms_as_paid():
+    """'Not Paid' / 'Unpaid' contain the substring 'paid' but mean the opposite.
+    They must NOT be classified paid, or an overdue invoice would be imported as
+    paid and vanish from the open ledger (showing 0 open invoices for a customer
+    the agent is still chasing)."""
+    not_paid = ["Unpaid", "unpaid", "Not Paid", "not paid", "Not yet paid",
+                "Non-paid", "No payment received"]
+    for label in not_paid:
+        assert csv_handler._normalise_status(label) != "paid", label
+
+    # Genuinely-paid labels still map to paid; overdue stays overdue.
+    assert csv_handler._normalise_status("Paid") == "paid"
+    assert csv_handler._normalise_status("Settled") == "paid"
+    assert csv_handler._normalise_status("Overdue") == "overdue"
+    assert csv_handler._normalise_status("Past Due") == "overdue"
+
+
+def test_csv_does_not_import_not_paid_invoice_as_paid(tmp_path):
+    """An overdue invoice the ledger labels 'Not Paid' must import as a still-open
+    invoice, so it remains visible in the open invoices / overdue totals."""
+    p = tmp_path / "ledger.csv"
+    p.write_text(
+        "Customer Name,Invoice Number,Amount Due,Invoice Date,Due Date,Status\n"
+        "Acme,INV-G004,1200,2026-05-01,2026-06-01,Not Paid\n",
+        encoding="utf-8",
+    )
+    df = csv_handler.load_csv(p)
+    mapping = csv_handler.auto_detect_columns(df)
+    _customers, invoices, _ = csv_handler.normalise(df, mapping)
+
+    assert invoices[0]["status"] != "paid"
+    assert invoices[0]["paid_date"] is None
+
+
 def test_summary_stats(sample_csv):
     df = csv_handler.load_csv(sample_csv)
     customers, invoices, _ = csv_handler.normalise(df, EXPLICIT_MAPPING)

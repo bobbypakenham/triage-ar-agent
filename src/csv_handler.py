@@ -138,14 +138,26 @@ def _normalise_status(value) -> str:
     """Map a free-text status cell to one of: paid / partial / overdue / open.
     Anything blank or unrecognised is treated as an outstanding 'open' invoice."""
     s = str(value).strip().lower()
-    if s in ("", "nan", "none") or "unpaid" in s:
+    if s in ("", "nan", "none"):
         return "open"
     if "partial" in s or "part" in s:
         return "partial"
-    if "paid" in s or "settled" in s or "cleared" in s or "complete" in s:
-        return "paid"
     if "overdue" in s or "past due" in s:
         return "overdue"
+    # Negated forms ("unpaid", "not paid", "not yet paid") contain the substring
+    # "paid" but mean the OPPOSITE — they must be caught before the paid check,
+    # or an overdue invoice gets imported as paid and vanishes from the ledger.
+    if (
+        "unpaid" in s
+        or "not paid" in s
+        or "not yet paid" in s
+        or "non-paid" in s
+        or "non paid" in s
+        or "no payment" in s
+    ):
+        return "open"
+    if "paid" in s or "settled" in s or "cleared" in s or "complete" in s:
+        return "paid"
     return "open"
 
 
