@@ -180,6 +180,10 @@ def _enrich_recommendation(r: dict) -> dict:
     profile = tools.get_customer_profile(cid)
     name = _display_name(profile) if "error" not in profile else cid
     overdue, _ = _overdue_and_outstanding(cid)
+    # Live count of invoices still open/overdue/partial. The recommendation was
+    # made at the last run; if every invoice has since been marked paid this is
+    # 0, which the action queue uses to show the customer as settled.
+    open_invoice_count = len(database.get_open_invoices(cid))
     return {
         "customer_id": cid,
         "name": name,
@@ -189,6 +193,7 @@ def _enrich_recommendation(r: dict) -> dict:
         "reasoning": r.get("reasoning"),
         "overdue_value": overdue,
         "currency": _customer_currency(cid),
+        "open_invoice_count": open_invoice_count,
         "drafted_email": r.get("drafted_email"),
     }
 
